@@ -82,7 +82,7 @@ function RosterTable({ players }) {
           </tr>
         </thead>
         <tbody>
-          {players.map(([name,pos,ovr,sals,opt],i)=>(
+          {players.map(([name,pos,ovr,sals,opt,labels],i)=>(
             <tr key={i} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",transition:"background 0.12s"}}
               onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
@@ -96,6 +96,7 @@ function RosterTable({ players }) {
               </td>
               {Array.from({length:maxSal},(_,yi)=>{
                 const v = sals[yi]||0;
+                const label = labels?.[yi] || null;
                 const nonZero = sals.slice(0,maxSal).map((s,i)=>s>0?i:-1).filter(i=>i>=0);
                 const lastIdx = nonZero[nonZero.length-1];
                 const finalIdx = nonZero.length>1 ? nonZero[nonZero.length-2] : nonZero[0];
@@ -107,7 +108,11 @@ function RosterTable({ players }) {
                 return (
                   <td key={yi} style={{padding:"8px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                      <span style={{color:salColor,fontWeight:v?600:400,fontVariantNumeric:"tabular-nums",fontSize:13}}>{v?money(v):"—"}</span>
+                      {label && !v ? (
+                        <span style={{color:"#334155",fontWeight:600,fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{label}</span>
+                      ) : (
+                        <span style={{color:salColor,fontWeight:v?600:400,fontVariantNumeric:"tabular-nums",fontSize:13}}>{v?money(v):"—"}</span>
+                      )}
                       {isCapHold&&<span style={{color:"#334155",fontSize:9,fontWeight:700,letterSpacing:1,fontFamily:"'Barlow Condensed',sans-serif"}}>HOLD</span>}
                     </div>
                   </td>
@@ -173,7 +178,7 @@ export default function LeagueApp() {
     (async () => {
       try {
         const [rosterRes, summaryRes, picksRes] = await Promise.all([
-          supabase.from("roster").select("team_abbr,player_name,position,ovr,salary_yr1,salary_yr2,salary_yr3,salary_yr4,salary_yr5,option_type").order("id"),
+          supabase.from("roster").select("team_abbr,player_name,position,ovr,salary_yr1,salary_yr2,salary_yr3,salary_yr4,salary_yr5,salary_yr1_label,salary_yr2_label,salary_yr3_label,salary_yr4_label,salary_yr5_label,option_type").order("id"),
           supabase.from("league_summary").select("team_abbr,gm,avg_ovr,cap_space_with_holds"),
           supabase.from("draft_picks").select("team_abbr,pick_year,from_team").order("pick_year"),
         ]);
@@ -194,6 +199,7 @@ export default function LeagueApp() {
             row.ovr != null ? Number(row.ovr) : null,
             [row.salary_yr1, row.salary_yr2, row.salary_yr3, row.salary_yr4, row.salary_yr5].map(num),
             row.option_type || null,
+            [row.salary_yr1_label, row.salary_yr2_label, row.salary_yr3_label, row.salary_yr4_label, row.salary_yr5_label].map(l => l || null),
           ]);
         }
         const s = {};
