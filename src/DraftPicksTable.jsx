@@ -149,17 +149,21 @@ export default function DraftPicksTable({ teamAbbr }) {
 
                 {/* Main content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* Row 1: type badge + ownership header (original → owned_by) */}
+                  {/* Row 1: type badge + ownership header (hidden when the original team is already a participant in the swap) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <PickTypeBadge type={pick.pick_type} direction={pick.swap_direction} />
-                    <TeamChip abbr={pick.original_team} />
-                    {pick.original_team !== pick.owned_by ? (
+                    {!(pick.pick_type !== 'own' && (pick.swap_teams || []).includes(pick.original_team)) && (
                       <>
-                        <span style={{ color: '#334155', fontSize: 11 }}>→</span>
-                        <TeamChip abbr={pick.owned_by} />
+                        <TeamChip abbr={pick.original_team} />
+                        {pick.original_team !== pick.owned_by ? (
+                          <>
+                            <span style={{ color: '#334155', fontSize: 11 }}>→</span>
+                            <TeamChip abbr={pick.owned_by} />
+                          </>
+                        ) : (
+                          <span style={{ color: '#475569', fontSize: 12, fontFamily: BC }}>own pick</span>
+                        )}
                       </>
-                    ) : (
-                      <span style={{ color: '#475569', fontSize: 12, fontFamily: BC }}>own pick</span>
                     )}
                   </div>
 

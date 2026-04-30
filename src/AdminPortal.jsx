@@ -138,7 +138,9 @@ function PicksTab() {
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:3 }}>
                     <span style={{ fontFamily:BC, fontWeight:700, fontSize:11, color:'#60a5fa', background:'rgba(96,165,250,0.1)', borderRadius:4, padding:'1px 7px' }}>{typeLabel[p.pick_type]||p.pick_type}</span>
-                    <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{p.original_team}{p.original_team!==p.owned_by?` → ${p.owned_by}`:' (own)'}</span>
+                    {!(p.pick_type!=='own' && (p.swap_teams||[]).includes(p.original_team)) && (
+                      <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{p.original_team}{p.original_team!==p.owned_by?` → ${p.owned_by}`:' (own)'}</span>
+                    )}
                     {p.protection&&<span style={{ fontFamily:BC, fontSize:10, color:'#f97316', background:'rgba(249,115,22,0.1)', borderRadius:4, padding:'1px 6px' }}>🔒 {p.protection}</span>}
                   </div>
                   {p.pick_type!=='own' && (
