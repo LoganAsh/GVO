@@ -78,6 +78,13 @@ function PicksTab() {
   }
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const changePickType = (v) => setForm(f => {
+    const next = { ...f, pick_type: v }
+    if ((v === 'swap' || v === 'multi_swap') && (!f.swap_teams || f.swap_teams.length === 0) && f.original_team) {
+      next.swap_teams = [f.original_team]
+    }
+    return next
+  })
   const addSwapTeam    = t => { if (!form.swap_teams.includes(t)) set('swap_teams', [...form.swap_teams, t]) }
   const removeSwapTeam = t => set('swap_teams', form.swap_teams.filter(x => x !== t))
 
@@ -164,7 +171,7 @@ function PicksTab() {
                 <label style={labelStyle}>Pick Type</label>
                 <div style={{ display:'flex', gap:6 }}>
                   {[['own','Outright'],['swap','2-Team Swap'],['multi_swap','Multi-Team Swap']].map(([v,l])=>(
-                    <button key={v} onClick={()=>set('pick_type',v)} style={{ flex:1, padding:'9px 6px', borderRadius:8, border:`1px solid ${form.pick_type===v?'#f97316':'rgba(255,255,255,0.1)'}`, background:form.pick_type===v?'rgba(249,115,22,0.15)':'transparent', color:form.pick_type===v?'#f97316':'#64748b', fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, cursor:'pointer' }}>{l}</button>
+                    <button key={v} onClick={()=>changePickType(v)} style={{ flex:1, padding:'9px 6px', borderRadius:8, border:`1px solid ${form.pick_type===v?'#f97316':'rgba(255,255,255,0.1)'}`, background:form.pick_type===v?'rgba(249,115,22,0.15)':'transparent', color:form.pick_type===v?'#f97316':'#64748b', fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, cursor:'pointer' }}>{l}</button>
                   ))}
                 </div>
               </div>
