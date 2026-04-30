@@ -335,7 +335,9 @@ export default function LeagueApp() {
           <button onClick={()=>setTeamsExpanded(v=>!v)} aria-expanded={teamsExpanded}
             style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"none",border:"none",borderBottom:"1px solid rgba(255,255,255,0.04)",color:"#94a3b8",cursor:"pointer",textAlign:"left",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
             <span>Teams</span>
-            <span aria-hidden="true" style={{display:"inline-block",fontSize:10,color:"#64748b",transition:"transform 0.18s ease",transform:teamsExpanded?"rotate(90deg)":"rotate(0deg)"}}>▶</span>
+            <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:"#64748b",transition:"transform 0.18s ease",transform:teamsExpanded?"rotate(90deg)":"rotate(0deg)",flexShrink:0}}>
+              <path d="M3 1.5L7 5L3 8.5"/>
+            </svg>
           </button>
           {teamsExpanded && <TeamList/>}
         </div>
