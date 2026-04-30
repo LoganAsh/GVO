@@ -34,6 +34,7 @@ function PicksTab() {
   const [saveError, setSaveError] = useState(null)
   const [filterTeam, setFilter]   = useState('ALL')
   const [filterYear, setYearFilter] = useState('ALL')
+  const [filterRound, setRoundFilter] = useState('ALL')
 
   useEffect(() => { loadPicks() }, [])
 
@@ -90,9 +91,11 @@ function PicksTab() {
   const removeSwapTeam = t => set('swap_teams', form.swap_teams.filter(x => x !== t))
 
   const yearOptions = Array.from(new Set(picks.map(p => p.year).filter(y => y != null))).sort((a, b) => a - b)
+  const roundOptions = Array.from(new Set(picks.map(p => p.round).filter(r => r != null))).sort((a, b) => a - b)
   const visible = picks.filter(p =>
     (filterTeam === 'ALL' || p.owned_by === filterTeam || p.original_team === filterTeam || (p.swap_teams||[]).includes(filterTeam)) &&
-    (filterYear === 'ALL' || p.year === Number(filterYear))
+    (filterYear === 'ALL' || p.year === Number(filterYear)) &&
+    (filterRound === 'ALL' || p.round === Number(filterRound))
   )
   const typeLabel = { own:'Owns', swap:'Swap', multi_swap:'Multi-Swap' }
 
@@ -107,6 +110,10 @@ function PicksTab() {
           <select value={filterYear} onChange={e=>setYearFilter(e.target.value)} style={{ ...inputStyle, width:'auto' }}>
             <option value="ALL">All Years</option>
             {yearOptions.map(y=><option key={y} value={y}>{y}</option>)}
+          </select>
+          <select value={filterRound} onChange={e=>setRoundFilter(e.target.value)} style={{ ...inputStyle, width:'auto' }}>
+            <option value="ALL">All Rounds</option>
+            {roundOptions.map(r=><option key={r} value={r}>Round {r}</option>)}
           </select>
           <button onClick={openNew} style={{ padding:'9px 20px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:1, cursor:'pointer', marginLeft:'auto' }}>
             + Add Pick
