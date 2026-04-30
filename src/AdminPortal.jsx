@@ -22,7 +22,7 @@ function Card({ title, children }) {
 
 // ── Picks Tab ─────────────────────────────────────────────────────────────────
 
-const EMPTY_PICK = { year: new Date().getFullYear()+1, round:1, pick_type:'own', original_team:'ATL', owned_by:'ATL', worst_team:'', swap_teams:[], swap_direction:'best', protection:'', notes:'' }
+const EMPTY_PICK = { year: new Date().getFullYear()+1, round:1, pick_type:'own', original_team:'ATL', owned_by:'ATL', worst_team:'', receiving_team:'', swap_teams:[], swap_direction:'best', protection:'', notes:'' }
 
 function PicksTab() {
   const [picks, setPicks]         = useState([])
@@ -50,7 +50,7 @@ function PicksTab() {
     setForm({ ...EMPTY_PICK, original_team: team, owned_by: team })
     setEditId(null); setSaveError(null); setShowForm(true)
   }
-  const openEdit = p  => { setForm({ year:p.year, round:p.round, pick_type:p.pick_type, original_team:p.original_team, owned_by:p.owned_by, worst_team:p.worst_team||'', swap_teams:p.swap_teams||[], swap_direction:p.swap_direction||'best', protection:p.protection||'', notes:p.notes||'' }); setEditId(p.id); setSaveError(null); setShowForm(true) }
+  const openEdit = p  => { setForm({ year:p.year, round:p.round, pick_type:p.pick_type, original_team:p.original_team, owned_by:p.owned_by, worst_team:p.worst_team||'', receiving_team:p.receiving_team||'', swap_teams:p.swap_teams||[], swap_direction:p.swap_direction||'best', protection:p.protection||'', notes:p.notes||'' }); setEditId(p.id); setSaveError(null); setShowForm(true) }
 
   const handleSave = async () => {
     setSaving(true); setSaveError(null)
@@ -63,6 +63,7 @@ function PicksTab() {
       original_team: form.original_team,
       owned_by: form.owned_by,
       worst_team: isSwap ? (form.worst_team || null) : null,
+      receiving_team: isSwap ? (form.receiving_team || null) : null,
       swap_teams: isSwap ? form.swap_teams : null,
       swap_direction: isSwap ? 'best' : null,
       protection: form.protection || null,
@@ -138,9 +139,12 @@ function PicksTab() {
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:3 }}>
                     <span style={{ fontFamily:BC, fontWeight:700, fontSize:11, color:'#60a5fa', background:'rgba(96,165,250,0.1)', borderRadius:4, padding:'1px 7px' }}>{typeLabel[p.pick_type]||p.pick_type}</span>
-                    {!(p.pick_type!=='own' && (p.swap_teams||[]).includes(p.original_team)) && (
-                      <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{p.original_team}{p.original_team!==p.owned_by?` → ${p.owned_by}`:' (own)'}</span>
-                    )}
+                    {!(p.pick_type!=='own' && (p.swap_teams||[]).includes(p.original_team)) && (() => {
+                      const holder = p.pick_type!=='own' ? (p.receiving_team || p.owned_by) : p.owned_by
+                      return (
+                        <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{p.original_team}{p.original_team!==holder?` → ${holder}`:' (own)'}</span>
+                      )
+                    })()}
                     {p.protection&&<span style={{ fontFamily:BC, fontSize:10, color:'#f97316', background:'rgba(249,115,22,0.1)', borderRadius:4, padding:'1px 6px' }}>🔒 {p.protection}</span>}
                   </div>
                   {p.pick_type!=='own' && (
@@ -225,11 +229,20 @@ function PicksTab() {
               {/* Swap */}
               {(form.pick_type==='swap'||form.pick_type==='multi_swap') && (
                 <>
-                  <div>
-                    <label style={labelStyle}>Original Team</label>
-                    <select value={form.original_team} onChange={e=>set('original_team',e.target.value)} style={inputStyle}>
-                      {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
-                    </select>
+                  <div style={{ display:'flex', gap:12 }}>
+                    <div style={{ flex:1 }}>
+                      <label style={labelStyle}>Original Team</label>
+                      <select value={form.original_team} onChange={e=>set('original_team',e.target.value)} style={inputStyle}>
+                        {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+                      </select>
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <label style={labelStyle}>Receiving Team</label>
+                      <select value={form.receiving_team} onChange={e=>set('receiving_team',e.target.value)} style={inputStyle}>
+                        <option value="">— Same as original —</option>
+                        {TEAMS.filter(t=>t!==form.original_team).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div>
                     <label style={labelStyle}>Teams in Swap</label>
@@ -247,21 +260,29 @@ function PicksTab() {
                     </select>
                   </div>
                   <>
+                    {(() => {
+                      const recipientPool = Array.from(new Set([
+                        ...(form.original_team ? [form.original_team] : []),
+                        ...form.swap_teams,
+                      ]))
+                      return (
                     <div style={{ display:'flex', gap:12 }}>
                       <div style={{ flex:1 }}>
                         <label style={labelStyle}>Gets Best</label>
                         <select value={form.owned_by} onChange={e=>set('owned_by',e.target.value)} style={inputStyle}>
-                          {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+                          {(recipientPool.length ? recipientPool : TEAMS).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
                         </select>
                       </div>
                       <div style={{ flex:1 }}>
                         <label style={labelStyle}>Gets Worst</label>
                         <select value={form.worst_team} onChange={e=>set('worst_team',e.target.value)} style={inputStyle}>
                           <option value="">— None / unspecified</option>
-                          {TEAMS.filter(t=>t!==form.owned_by).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+                          {recipientPool.filter(t=>t!==form.owned_by).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
                         </select>
                       </div>
                     </div>
+                      )
+                    })()}
                     {form.pick_type==='multi_swap' && form.worst_team && (
                       <div style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#475569', textTransform:'uppercase', paddingLeft:2 }}>
                         Gets 2nd Best:&nbsp;

@@ -66,7 +66,7 @@ export default function DraftPicksTable({ teamAbbr }) {
     const { data, error } = await supabase
       .from('draft_picks')
       .select('*')
-      .or(`owned_by.eq.${teamAbbr},original_team.eq.${teamAbbr},worst_team.eq.${teamAbbr}`)
+      .or(`owned_by.eq.${teamAbbr},original_team.eq.${teamAbbr},worst_team.eq.${teamAbbr},receiving_team.eq.${teamAbbr}`)
       .order('year')
       .order('round')
 
@@ -152,19 +152,22 @@ export default function DraftPicksTable({ teamAbbr }) {
                   {/* Row 1: type badge + ownership header (hidden when the original team is already a participant in the swap) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <PickTypeBadge type={pick.pick_type} direction={pick.swap_direction} />
-                    {!(pick.pick_type !== 'own' && (pick.swap_teams || []).includes(pick.original_team)) && (
-                      <>
-                        <TeamChip abbr={pick.original_team} />
-                        {pick.original_team !== pick.owned_by ? (
-                          <>
-                            <span style={{ color: '#334155', fontSize: 11 }}>→</span>
-                            <TeamChip abbr={pick.owned_by} />
-                          </>
-                        ) : (
-                          <span style={{ color: '#475569', fontSize: 12, fontFamily: BC }}>own pick</span>
-                        )}
-                      </>
-                    )}
+                    {!(pick.pick_type !== 'own' && (pick.swap_teams || []).includes(pick.original_team)) && (() => {
+                      const holder = pick.pick_type !== 'own' ? (pick.receiving_team || pick.owned_by) : pick.owned_by
+                      return (
+                        <>
+                          <TeamChip abbr={pick.original_team} />
+                          {pick.original_team !== holder ? (
+                            <>
+                              <span style={{ color: '#334155', fontSize: 11 }}>→</span>
+                              <TeamChip abbr={holder} />
+                            </>
+                          ) : (
+                            <span style={{ color: '#475569', fontSize: 12, fontFamily: BC }}>own pick</span>
+                          )}
+                        </>
+                      )
+                    })()}
                   </div>
 
                   {/* Row 2: swap detail */}
