@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
+import DraftPicksTable from "./DraftPicksTable";
 
 const T = {"sat":154647000,"lux":187900000,"a1":195900000,"a2":207800000};
 
@@ -456,7 +457,7 @@ export default function LeagueApp() {
             {/* Content */}
             <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,overflow:"hidden"}}>
               {tab==="roster"&&<RosterTable players={players} seasonLabels={seasonLabels}/>}
-              {tab==="picks"&&<PicksTable picks={picks}/>}
+              {tab==="picks"&&<DraftPicksTable teamAbbr={sel} />}
             </div>
           </div>
 
