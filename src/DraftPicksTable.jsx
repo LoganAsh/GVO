@@ -66,7 +66,7 @@ export default function DraftPicksTable({ teamAbbr }) {
     const { data, error } = await supabase
       .from('draft_picks')
       .select('*')
-      .or(`owned_by.eq.${teamAbbr},original_team.eq.${teamAbbr}`)
+      .or(`owned_by.eq.${teamAbbr},original_team.eq.${teamAbbr},worst_team.eq.${teamAbbr}`)
       .order('year')
       .order('round')
 
@@ -189,9 +189,17 @@ export default function DraftPicksTable({ teamAbbr }) {
                             {i < arr.length - 1 && <span style={{ color: '#475569', fontSize: 11 }}>⇄</span>}
                           </span>
                         ))}
-                        <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
-                          · {pick.owned_by} takes {pick.swap_direction === 'best' ? 'best' : pick.swap_direction === 'second_best' ? '2nd best' : 'worst'}
-                        </span>
+                        {pick.worst_team ? (
+                          <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
+                            · <span style={{ color: '#94a3b8' }}>{pick.owned_by}</span> best ·
+                            {' '}<span style={{ color: '#94a3b8' }}>{(pick.swap_teams||[]).filter(t => t !== pick.owned_by && t !== pick.worst_team).join(', ') || '—'}</span> 2nd ·
+                            {' '}<span style={{ color: '#94a3b8' }}>{pick.worst_team}</span> worst
+                          </span>
+                        ) : (
+                          <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
+                            · {pick.owned_by} takes {pick.swap_direction === 'best' ? 'best' : pick.swap_direction === 'second_best' ? '2nd best' : 'worst'}
+                          </span>
+                        )}
                       </>
                     )}
                   </div>
