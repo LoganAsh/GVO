@@ -138,21 +138,20 @@ function PicksTab() {
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center', marginBottom:3 }}>
                     <span style={{ fontFamily:BC, fontWeight:700, fontSize:11, color:'#60a5fa', background:'rgba(96,165,250,0.1)', borderRadius:4, padding:'1px 7px' }}>{typeLabel[p.pick_type]||p.pick_type}</span>
-                    {p.pick_type==='own' ? (
-                      <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{p.original_team}{p.original_team!==p.owned_by?` → ${p.owned_by}`:' (own)'}</span>
-                    ) : (
-                      <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>
-                        {(p.swap_teams||[]).join(' ⇄ ')} · {
-                          p.worst_team
-                            ? (p.pick_type==='multi_swap'
-                                ? `${p.owned_by} best · ${(p.swap_teams||[]).filter(t=>t!==p.owned_by && t!==p.worst_team).join(', ')||'—'} 2nd · ${p.worst_team} worst`
-                                : `${p.owned_by} best · ${p.worst_team} worst`)
-                            : `${p.owned_by} takes ${p.swap_direction}`
-                        }
-                      </span>
-                    )}
+                    <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{p.original_team}{p.original_team!==p.owned_by?` → ${p.owned_by}`:' (own)'}</span>
                     {p.protection&&<span style={{ fontFamily:BC, fontSize:10, color:'#f97316', background:'rgba(249,115,22,0.1)', borderRadius:4, padding:'1px 6px' }}>🔒 {p.protection}</span>}
                   </div>
+                  {p.pick_type!=='own' && (
+                    <div style={{ fontFamily:BC, fontSize:12, color:'#64748b', marginBottom:p.notes?3:0 }}>
+                      {(p.swap_teams||[]).join(' ⇄ ')} · {
+                        p.worst_team
+                          ? (p.pick_type==='multi_swap'
+                              ? `${p.owned_by} best · ${(p.swap_teams||[]).filter(t=>t!==p.owned_by && t!==p.worst_team).join(', ')||'—'} 2nd · ${p.worst_team} worst`
+                              : `${p.owned_by} best · ${p.worst_team} worst`)
+                          : `${p.owned_by} takes ${p.swap_direction}`
+                      }
+                    </div>
+                  )}
                   {p.notes&&<div style={{ fontSize:12, color:'#475569', fontFamily:B }}>{p.notes}</div>}
                 </div>
                 <div style={{ display:'flex', gap:6, flexShrink:0 }}>

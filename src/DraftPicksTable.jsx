@@ -149,54 +149,31 @@ export default function DraftPicksTable({ teamAbbr }) {
 
                 {/* Main content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* Row 1: type badge + teams */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: pick.protection || pick.notes ? 6 : 0 }}>
+                  {/* Row 1: type badge + ownership header (original → owned_by) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <PickTypeBadge type={pick.pick_type} direction={pick.swap_direction} />
-
-                    {pick.pick_type === 'own' ? (
-                      // Simple ownership
+                    <TeamChip abbr={pick.original_team} />
+                    {pick.original_team !== pick.owned_by ? (
                       <>
-                        <TeamChip abbr={pick.original_team} />
-                        {pick.original_team !== pick.owned_by && (
-                          <>
-                            <span style={{ color: '#334155', fontSize: 11 }}>→</span>
-                            <TeamChip abbr={pick.owned_by} />
-                          </>
-                        )}
-                        {pick.original_team === pick.owned_by && (
-                          <span style={{ color: '#475569', fontSize: 12, fontFamily: BC }}>own pick</span>
-                        )}
-                      </>
-                    ) : pick.pick_type === 'swap' ? (
-                      // 2-team swap
-                      <>
-                        {(pick.swap_teams || [pick.original_team, pick.owned_by]).map((t, i, arr) => (
-                          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <TeamChip abbr={t} />
-                            {i < arr.length - 1 && <span style={{ color: '#475569', fontSize: 11 }}>⇄</span>}
-                          </span>
-                        ))}
-                        {pick.worst_team ? (
-                          <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
-                            · <span style={{ color: '#94a3b8' }}>{pick.owned_by}</span> best ·
-                            {' '}<span style={{ color: '#94a3b8' }}>{pick.worst_team}</span> worst
-                          </span>
-                        ) : (
-                          <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
-                            · {pick.owned_by} takes {pick.swap_direction === 'best' ? 'better' : 'worse'}
-                          </span>
-                        )}
+                        <span style={{ color: '#334155', fontSize: 11 }}>→</span>
+                        <TeamChip abbr={pick.owned_by} />
                       </>
                     ) : (
-                      // Multi-team swap
-                      <>
-                        {(pick.swap_teams || []).map((t, i, arr) => (
-                          <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            <TeamChip abbr={t} />
-                            {i < arr.length - 1 && <span style={{ color: '#475569', fontSize: 11 }}>⇄</span>}
-                          </span>
-                        ))}
-                        {pick.worst_team ? (
+                      <span style={{ color: '#475569', fontSize: 12, fontFamily: BC }}>own pick</span>
+                    )}
+                  </div>
+
+                  {/* Row 2: swap detail */}
+                  {pick.pick_type !== 'own' && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
+                      {(pick.swap_teams || []).map((t, i, arr) => (
+                        <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <TeamChip abbr={t} />
+                          {i < arr.length - 1 && <span style={{ color: '#475569', fontSize: 11 }}>⇄</span>}
+                        </span>
+                      ))}
+                      {pick.worst_team ? (
+                        pick.pick_type === 'multi_swap' ? (
                           <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
                             · <span style={{ color: '#94a3b8' }}>{pick.owned_by}</span> best ·
                             {' '}<span style={{ color: '#94a3b8' }}>{(pick.swap_teams||[]).filter(t => t !== pick.owned_by && t !== pick.worst_team).join(', ') || '—'}</span> 2nd ·
@@ -204,12 +181,17 @@ export default function DraftPicksTable({ teamAbbr }) {
                           </span>
                         ) : (
                           <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
-                            · {pick.owned_by} takes {pick.swap_direction === 'best' ? 'best' : pick.swap_direction === 'second_best' ? '2nd best' : 'worst'}
+                            · <span style={{ color: '#94a3b8' }}>{pick.owned_by}</span> best ·
+                            {' '}<span style={{ color: '#94a3b8' }}>{pick.worst_team}</span> worst
                           </span>
-                        )}
-                      </>
-                    )}
-                  </div>
+                        )
+                      ) : (
+                        <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
+                          · {pick.owned_by} takes {pick.swap_direction === 'best' ? (pick.pick_type === 'swap' ? 'better' : 'best') : pick.swap_direction === 'second_best' ? '2nd best' : (pick.pick_type === 'swap' ? 'worse' : 'worst')}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   {/* Row 2: protection + notes */}
                   {(pick.protection || pick.notes) && (
