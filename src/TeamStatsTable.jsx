@@ -57,9 +57,10 @@ export default function TeamStatsTable({ teamAbbr }) {
     </div>
   )
 
-  // Group rows by player to compute season averages
+  // Group rows by player to compute season averages. DNP rows don't count as a played game.
   const byPlayer = {}
   for (const r of rows) {
+    if (r.dnp) continue
     const key = r.player_id ?? `name:${r.player_name}`
     if (!byPlayer[key]) byPlayer[key] = { player_name: r.player_name, player_id: r.player_id, games: 0 }
     const p = byPlayer[key]
@@ -144,7 +145,12 @@ export default function TeamStatsTable({ teamAbbr }) {
                 </tr>
               </thead>
               <tbody>
-                {gRows.map(r => (
+                {gRows.map(r => r.dnp ? (
+                  <tr key={r.id} style={{ borderTop:'1px solid rgba(255,255,255,0.03)' }}>
+                    <td style={{ padding:'6px 12px', color:'#475569', whiteSpace:'nowrap' }}>{r.player_name}</td>
+                    <td colSpan={STAT_COLS.length + 3} style={{ padding:'6px 6px', textAlign:'center', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase' }}>DNP</td>
+                  </tr>
+                ) : (
                   <tr key={r.id} style={{ borderTop:'1px solid rgba(255,255,255,0.03)' }}>
                     <td style={{ padding:'6px 12px', color:'#cbd5e1', whiteSpace:'nowrap' }}>{r.player_name}</td>
                     {STAT_COLS.map(c => (

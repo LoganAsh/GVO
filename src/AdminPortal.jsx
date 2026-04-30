@@ -345,6 +345,36 @@ const STAT_COLS = [
 const blankStatRow = () => Object.fromEntries(STAT_COLS.map(c => [c.key, 0]))
 const isAllZero = r => STAT_COLS.every(c => !Number(r[c.key]))
 
+// Normalize a name to a comparable token, then split into initial + last.
+// Handles formats like "A. Edwards", "A Edwards", "Anthony Edwards", "Edwards, Anthony".
+function normalizeName(raw) {
+  if (!raw) return null
+  const s = raw.replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+  if (!s) return null
+  const parts = s.split(' ')
+  if (parts.length === 1) return { first: '', last: parts[0] }
+  return { first: parts[0], last: parts[parts.length - 1] }
+}
+
+// Match a free-typed name against a list of roster {id, name} entries.
+// Returns the matched id when there is exactly one unambiguous match, else null.
+function matchRosterId(typed, roster) {
+  const t = normalizeName(typed)
+  if (!t) return null
+  const candidates = (roster || []).map(p => ({ id: p.id, name: p.name, n: normalizeName(p.name) })).filter(p => p.n)
+  // 1) exact full-name match
+  const exact = candidates.filter(p => p.n.first === t.first && p.n.last === t.last)
+  if (exact.length === 1) return exact[0].id
+  // 2) last name match + first initial (typed could be just an initial)
+  const initial = (t.first || '')[0] || ''
+  const byLastInit = candidates.filter(p => p.n.last === t.last && (!initial || (p.n.first || '')[0] === initial))
+  if (byLastInit.length === 1) return byLastInit[0].id
+  // 3) last name unique on its own
+  const byLast = candidates.filter(p => p.n.last === t.last)
+  if (byLast.length === 1) return byLast[0].id
+  return null
+}
+
 function StatsTab() {
   const today = new Date().toISOString().slice(0, 10)
   const [gameDate, setGameDate]   = useState(today)
@@ -392,7 +422,15 @@ function StatsTab() {
     setStatsByTeam(prev => {
       if (prev[team]) return prev
       const players = rosterByTeam[team] || []
-      return { ...prev, [team]: players.map(p => ({ player_id: p.id, player_name: p.name, ...blankStatRow() })) }
+      return { ...prev, [team]: players.map(p => ({ player_id: p.id, player_name: p.name, dnp: false, ...blankStatRow() })) }
+    })
+  }
+
+  const setRowDnp = (team, idx, dnp) => {
+    setStatsByTeam(prev => {
+      const rows = (prev[team] || []).slice()
+      rows[idx] = { ...rows[idx], dnp }
+      return { ...prev, [team]: rows }
     })
   }
 
@@ -413,7 +451,7 @@ function StatsTab() {
   }
 
   const addRow = (team) => {
-    setStatsByTeam(prev => ({ ...prev, [team]: [...(prev[team]||[]), { player_id: null, player_name: '', ...blankStatRow() }] }))
+    setStatsByTeam(prev => ({ ...prev, [team]: [...(prev[team]||[]), { player_id: null, player_name: '', dnp: false, ...blankStatRow() }] }))
   }
 
   const resetForm = () => {
@@ -434,9 +472,16 @@ function StatsTab() {
     const byTeam = {}
     for (const r of rows || []) {
       if (!byTeam[r.team_abbr]) byTeam[r.team_abbr] = []
-      const next = { player_id: r.player_id, player_name: r.player_name }
+      const next = { player_id: r.player_id, player_name: r.player_name, dnp: !!r.dnp }
       for (const c of STAT_COLS) next[c.key] = r[c.key] || 0
       byTeam[r.team_abbr].push(next)
+    }
+    // Add any roster players that weren't in the saved game so the admin can mark
+    // them DNP if they meant to. New rows go below the saved ones.
+    for (const team of [g.home_team, g.away_team]) {
+      const present = new Set((byTeam[team]||[]).map(r => r.player_id).filter(Boolean))
+      const extras = (rosterByTeam[team]||[]).filter(p => !present.has(p.id)).map(p => ({ player_id: p.id, player_name: p.name, dnp: false, ...blankStatRow() }))
+      byTeam[team] = [...(byTeam[team]||[]), ...extras]
     }
     setStatsByTeam(byTeam)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -464,11 +509,23 @@ function StatsTab() {
     }
     const insertRows = []
     for (const team of [homeTeam, awayTeam]) {
+      const teamRoster = rosterByTeam[team] || []
       for (const r of (statsByTeam[team] || [])) {
-        if (!r.player_name?.trim() && !r.player_id) continue
-        if (isAllZero(r)) continue
-        const row = { game_id: gameId, player_id: r.player_id || null, team_abbr: team, player_name: r.player_name?.trim() || '' }
-        for (const c of STAT_COLS) row[c.key] = Number(r[c.key]) || 0
+        const name = r.player_name?.trim() || ''
+        if (!name && !r.player_id) continue
+        // Drop rows that are neither DNP nor have any stats — those are unfilled roster entries.
+        if (!r.dnp && isAllZero(r)) continue
+        // Try to map free-typed names back to a roster id when missing or stale.
+        let pid = r.player_id || null
+        if (!pid || !teamRoster.some(p => p.id === pid)) pid = matchRosterId(name, teamRoster)
+        const row = {
+          game_id: gameId,
+          player_id: pid,
+          team_abbr: team,
+          player_name: name,
+          dnp: !!r.dnp,
+        }
+        for (const c of STAT_COLS) row[c.key] = r.dnp ? 0 : (Number(r[c.key]) || 0)
         insertRows.push(row)
       }
     }
@@ -501,29 +558,41 @@ function StatsTab() {
             <thead>
               <tr style={{ background:'rgba(255,255,255,0.04)' }}>
                 <th style={{ textAlign:'left', padding:'7px 10px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:1.5, textTransform:'uppercase', fontWeight:700, position:'sticky', left:0, background:'rgba(13,21,37,0.95)', minWidth:160 }}>Player</th>
+                <th style={{ textAlign:'center', padding:'7px 6px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700, minWidth:36 }}>DNP</th>
                 {STAT_COLS.map(c => <th key={c.key} style={{ textAlign:'center', padding:'7px 6px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700, minWidth:48 }}>{c.label}</th>)}
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
                 <tr><td colSpan={STAT_COLS.length+1} style={{ padding:14, textAlign:'center', color:'#475569', fontFamily:BC, letterSpacing:2, fontSize:11 }}>NO PLAYERS — pick a team or add one</td></tr>
-              ) : rows.map((r, i) => (
-                <tr key={i} style={{ borderTop:'1px solid rgba(255,255,255,0.04)' }}>
+              ) : rows.map((r, i) => {
+                const matched = !!r.player_id || !r.player_name?.trim() || !!matchRosterId(r.player_name, rosterByTeam[team]||[])
+                return (
+                <tr key={i} style={{ borderTop:'1px solid rgba(255,255,255,0.04)', opacity: r.dnp ? 0.55 : 1 }}>
                   <td style={{ padding:'5px 8px', position:'sticky', left:0, background:'#0d1525' }}>
-                    <input value={r.player_name||''} onChange={e=>setRowName(team, i, e.target.value)} style={{ width:'100%', background:'transparent', border:'none', color:'#f1f5f9', fontFamily:B, fontSize:12, outline:'none' }}/>
+                    <input
+                      value={r.player_name||''}
+                      onChange={e=>setRowName(team, i, e.target.value)}
+                      title={matched ? '' : 'No roster match — will save as a free-text name'}
+                      style={{ width:'100%', background:'transparent', border:'none', color: matched ? '#f1f5f9' : '#fbbf24', fontFamily:B, fontSize:12, outline:'none' }}/>
+                  </td>
+                  <td style={{ padding:'5px 6px', textAlign:'center' }}>
+                    <input type="checkbox" checked={!!r.dnp} onChange={e=>setRowDnp(team, i, e.target.checked)} style={{ cursor:'pointer' }}/>
                   </td>
                   {STAT_COLS.map(c => (
                     <td key={c.key} style={{ padding:'2px 4px', textAlign:'center' }}>
                       <input
                         type="number"
-                        value={r[c.key] === 0 ? 0 : (r[c.key] ?? '')}
+                        disabled={r.dnp}
+                        value={r.dnp ? '' : (r[c.key] === 0 ? 0 : (r[c.key] ?? ''))}
                         onChange={e=>setRowField(team, i, c.key, e.target.value === '' ? 0 : Number(e.target.value))}
                         onFocus={e=>e.target.select()}
                         style={{ width:48, padding:'5px 4px', textAlign:'center', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:4, color:'#f1f5f9', fontFamily:B, fontSize:12, outline:'none', fontVariantNumeric:'tabular-nums' }}/>
                     </td>
                   ))}
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
