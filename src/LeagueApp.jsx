@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import DraftPicksTable from "./DraftPicksTable";
+import TeamStatsTable from "./TeamStatsTable";
 
 const T = {"sat":154647000,"lux":187900000,"a1":195900000,"a2":207800000};
 
@@ -470,7 +471,7 @@ export default function LeagueApp() {
 
             {/* Tab Switcher */}
             <div style={{display:"flex",gap:3,marginBottom:16,background:"rgba(255,255,255,0.04)",borderRadius:9,padding:3,width:"fit-content"}}>
-              {[["roster","📋 Roster"],["picks","🎯 Picks"]].map(([t,l])=>(
+              {[["roster","📋 Roster"],["picks","🎯 Picks"],["stats","📊 Stats"]].map(([t,l])=>(
                 <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:1,background:tab===t?"rgba(249,115,22,0.9)":"transparent",color:tab===t?"#fff":"#64748b"}}>
                   {l}
                 </button>
@@ -481,6 +482,7 @@ export default function LeagueApp() {
             <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,overflow:"hidden"}}>
               {tab==="roster"&&<RosterTable players={players} seasonLabels={seasonLabels}/>}
               {tab==="picks"&&<DraftPicksTable teamAbbr={sel} />}
+              {tab==="stats"&&<TeamStatsTable teamAbbr={sel} />}
             </div>
           </div>
 

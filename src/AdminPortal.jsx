@@ -322,6 +322,294 @@ function PicksTab() {
   )
 }
 
+// ── Stats Tab ─────────────────────────────────────────────────────────────────
+
+const STAT_COLS = [
+  { key:'min',      label:'MIN' },
+  { key:'pts',      label:'PTS' },
+  { key:'reb',      label:'REB' },
+  { key:'ast',      label:'AST' },
+  { key:'stl',      label:'STL' },
+  { key:'blk',      label:'BLK' },
+  { key:'tov',      label:'TO'  },
+  { key:'fgm',      label:'FGM' },
+  { key:'fga',      label:'FGA' },
+  { key:'three_pm', label:'3PM' },
+  { key:'three_pa', label:'3PA' },
+  { key:'ftm',      label:'FTM' },
+  { key:'fta',      label:'FTA' },
+  { key:'oreb',     label:'OR'  },
+  { key:'fls',      label:'FLS' },
+]
+
+const blankStatRow = () => Object.fromEntries(STAT_COLS.map(c => [c.key, 0]))
+const isAllZero = r => STAT_COLS.every(c => !Number(r[c.key]))
+
+function StatsTab() {
+  const today = new Date().toISOString().slice(0, 10)
+  const [gameDate, setGameDate]   = useState(today)
+  const [homeTeam, setHomeTeam]   = useState('ATL')
+  const [awayTeam, setAwayTeam]   = useState('BOS')
+  const [homeScore, setHomeScore] = useState('')
+  const [awayScore, setAwayScore] = useState('')
+  const [notes, setNotes]         = useState('')
+  const [editId, setEditId]       = useState(null)
+  const [saving, setSaving]       = useState(false)
+  const [saveError, setSaveError] = useState(null)
+
+  // Roster lookup keyed by team abbr
+  const [rosterByTeam, setRosterByTeam] = useState({})
+  // Per-game stats keyed by team abbr → array of { player_id, player_name, ...stat keys }
+  const [statsByTeam, setStatsByTeam]   = useState({})
+  const [recentGames, setRecentGames]   = useState([])
+  const [loading, setLoading]           = useState(true)
+
+  useEffect(() => { loadAll() }, [])
+  // Re-seed stat rows from roster when teams change (only for new entry, not edits in progress)
+  useEffect(() => {
+    if (editId) return
+    seedRowsForTeam(homeTeam)
+    seedRowsForTeam(awayTeam)
+  }, [homeTeam, awayTeam, rosterByTeam, editId])
+
+  const loadAll = async () => {
+    setLoading(true)
+    const [{ data: rosterRows }, { data: gameRows }] = await Promise.all([
+      supabase.from('roster').select('id,team_abbr,player_name').order('id'),
+      supabase.from('games').select('*').order('game_date', { ascending: false }).order('id', { ascending: false }).limit(40),
+    ])
+    const byTeam = {}
+    for (const r of rosterRows || []) {
+      if (!byTeam[r.team_abbr]) byTeam[r.team_abbr] = []
+      byTeam[r.team_abbr].push({ id: r.id, name: r.player_name })
+    }
+    setRosterByTeam(byTeam)
+    setRecentGames(gameRows || [])
+    setLoading(false)
+  }
+
+  const seedRowsForTeam = (team) => {
+    setStatsByTeam(prev => {
+      if (prev[team]) return prev
+      const players = rosterByTeam[team] || []
+      return { ...prev, [team]: players.map(p => ({ player_id: p.id, player_name: p.name, ...blankStatRow() })) }
+    })
+  }
+
+  const setRowField = (team, idx, key, value) => {
+    setStatsByTeam(prev => {
+      const rows = (prev[team] || []).slice()
+      rows[idx] = { ...rows[idx], [key]: value }
+      return { ...prev, [team]: rows }
+    })
+  }
+
+  const setRowName = (team, idx, name) => {
+    setStatsByTeam(prev => {
+      const rows = (prev[team] || []).slice()
+      rows[idx] = { ...rows[idx], player_name: name }
+      return { ...prev, [team]: rows }
+    })
+  }
+
+  const addRow = (team) => {
+    setStatsByTeam(prev => ({ ...prev, [team]: [...(prev[team]||[]), { player_id: null, player_name: '', ...blankStatRow() }] }))
+  }
+
+  const resetForm = () => {
+    setEditId(null); setSaveError(null)
+    setGameDate(today); setHomeTeam('ATL'); setAwayTeam('BOS')
+    setHomeScore(''); setAwayScore(''); setNotes('')
+    setStatsByTeam({})
+  }
+
+  const startEdit = async (g) => {
+    setEditId(g.id); setSaveError(null)
+    setGameDate(g.game_date || today)
+    setHomeTeam(g.home_team || 'ATL'); setAwayTeam(g.away_team || 'BOS')
+    setHomeScore(g.home_score == null ? '' : String(g.home_score))
+    setAwayScore(g.away_score == null ? '' : String(g.away_score))
+    setNotes(g.notes || '')
+    const { data: rows } = await supabase.from('player_stats').select('*').eq('game_id', g.id).order('id')
+    const byTeam = {}
+    for (const r of rows || []) {
+      if (!byTeam[r.team_abbr]) byTeam[r.team_abbr] = []
+      const next = { player_id: r.player_id, player_name: r.player_name }
+      for (const c of STAT_COLS) next[c.key] = r[c.key] || 0
+      byTeam[r.team_abbr].push(next)
+    }
+    setStatsByTeam(byTeam)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleSave = async () => {
+    setSaving(true); setSaveError(null)
+    const gamePayload = {
+      game_date: gameDate || null,
+      home_team: homeTeam, away_team: awayTeam,
+      home_score: homeScore === '' ? null : Number(homeScore),
+      away_score: awayScore === '' ? null : Number(awayScore),
+      notes: notes || null,
+    }
+    let gameId = editId
+    if (editId) {
+      const { error } = await supabase.from('games').update(gamePayload).eq('id', editId)
+      if (error) { setSaving(false); setSaveError(error.message); return }
+      // Wipe existing stat rows for this game so we can re-insert clean
+      await supabase.from('player_stats').delete().eq('game_id', editId)
+    } else {
+      const { data, error } = await supabase.from('games').insert(gamePayload).select('id').single()
+      if (error || !data) { setSaving(false); setSaveError(error?.message || 'Insert failed'); return }
+      gameId = data.id
+    }
+    const insertRows = []
+    for (const team of [homeTeam, awayTeam]) {
+      for (const r of (statsByTeam[team] || [])) {
+        if (!r.player_name?.trim() && !r.player_id) continue
+        if (isAllZero(r)) continue
+        const row = { game_id: gameId, player_id: r.player_id || null, team_abbr: team, player_name: r.player_name?.trim() || '' }
+        for (const c of STAT_COLS) row[c.key] = Number(r[c.key]) || 0
+        insertRows.push(row)
+      }
+    }
+    if (insertRows.length) {
+      const { error } = await supabase.from('player_stats').insert(insertRows)
+      if (error) { setSaving(false); setSaveError(error.message); return }
+    }
+    setSaving(false)
+    await loadAll()
+    resetForm()
+  }
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Delete this game and all its stat rows?')) return
+    await supabase.from('games').delete().eq('id', id)
+    if (editId === id) resetForm()
+    loadAll()
+  }
+
+  const TeamGrid = ({ team }) => {
+    const rows = statsByTeam[team] || []
+    return (
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 8 }}>
+          <div style={{ fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:2, color:'#f1f5f9' }}>{team} {FULL[team]?`— ${FULL[team]}`:''}</div>
+          <button type="button" onClick={()=>addRow(team)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontSize:11, cursor:'pointer' }}>+ Add Player</button>
+        </div>
+        <div style={{ overflowX:'auto', border:'1px solid rgba(255,255,255,0.06)', borderRadius:10 }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontFamily:B, fontSize:12 }}>
+            <thead>
+              <tr style={{ background:'rgba(255,255,255,0.04)' }}>
+                <th style={{ textAlign:'left', padding:'7px 10px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:1.5, textTransform:'uppercase', fontWeight:700, position:'sticky', left:0, background:'rgba(13,21,37,0.95)', minWidth:160 }}>Player</th>
+                {STAT_COLS.map(c => <th key={c.key} style={{ textAlign:'center', padding:'7px 6px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700, minWidth:48 }}>{c.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 ? (
+                <tr><td colSpan={STAT_COLS.length+1} style={{ padding:14, textAlign:'center', color:'#475569', fontFamily:BC, letterSpacing:2, fontSize:11 }}>NO PLAYERS — pick a team or add one</td></tr>
+              ) : rows.map((r, i) => (
+                <tr key={i} style={{ borderTop:'1px solid rgba(255,255,255,0.04)' }}>
+                  <td style={{ padding:'5px 8px', position:'sticky', left:0, background:'#0d1525' }}>
+                    <input value={r.player_name||''} onChange={e=>setRowName(team, i, e.target.value)} style={{ width:'100%', background:'transparent', border:'none', color:'#f1f5f9', fontFamily:B, fontSize:12, outline:'none' }}/>
+                  </td>
+                  {STAT_COLS.map(c => (
+                    <td key={c.key} style={{ padding:'2px 4px', textAlign:'center' }}>
+                      <input
+                        type="number"
+                        value={r[c.key] === 0 ? 0 : (r[c.key] ?? '')}
+                        onChange={e=>setRowField(team, i, c.key, e.target.value === '' ? 0 : Number(e.target.value))}
+                        onFocus={e=>e.target.select()}
+                        style={{ width:48, padding:'5px 4px', textAlign:'center', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:4, color:'#f1f5f9', fontFamily:B, fontSize:12, outline:'none', fontVariantNumeric:'tabular-nums' }}/>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Card title="📊 Game Stats">
+      {loading ? (
+        <div style={{ color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:11, padding:24, textAlign:'center' }}>LOADING…</div>
+      ) : (
+        <>
+          {saveError && (
+            <div style={{ background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, padding:'10px 12px', marginBottom:16, color:'#fca5a5', fontFamily:B, fontSize:12 }}>
+              <div style={{ fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, textTransform:'uppercase', color:'#f87171', marginBottom:2 }}>Save failed</div>
+              {saveError}
+            </div>
+          )}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:12, marginBottom:16 }}>
+            <div>
+              <label style={labelStyle}>Date</label>
+              <input type="date" value={gameDate} onChange={e=>setGameDate(e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={labelStyle}>Home Team</label>
+              <select value={homeTeam} onChange={e=>setHomeTeam(e.target.value)} style={inputStyle}>
+                {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Away Team</label>
+              <select value={awayTeam} onChange={e=>setAwayTeam(e.target.value)} style={inputStyle}>
+                {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={labelStyle}>Home Score</label>
+              <input type="number" value={homeScore} onChange={e=>setHomeScore(e.target.value)} style={inputStyle}/>
+            </div>
+            <div>
+              <label style={labelStyle}>Away Score</label>
+              <input type="number" value={awayScore} onChange={e=>setAwayScore(e.target.value)} style={inputStyle}/>
+            </div>
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label style={labelStyle}>Notes (optional)</label>
+            <input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="e.g. Wolves trounce Kings, conf semifinals" style={inputStyle}/>
+          </div>
+          <TeamGrid team={homeTeam}/>
+          <TeamGrid team={awayTeam}/>
+          <div style={{ display:'flex', gap:10, marginTop:12 }}>
+            <button onClick={handleSave} disabled={saving} style={{ padding:'10px 22px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:1, cursor:saving?'wait':'pointer', opacity:saving?0.6:1 }}>
+              {saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save Game')}
+            </button>
+            {editId && (
+              <button onClick={resetForm} type="button" style={{ padding:'10px 18px', borderRadius:8, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1, cursor:'pointer' }}>Cancel Edit</button>
+            )}
+          </div>
+
+          <div style={{ marginTop:32 }}>
+            <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:2, color:'#475569', textTransform:'uppercase', marginBottom:10 }}>Recent Games</div>
+            {recentGames.length === 0 ? (
+              <div style={{ color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:11, padding:14 }}>NO GAMES YET</div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                {recentGames.map(g => (
+                  <div key={g.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ fontFamily:BC, fontWeight:700, fontSize:11, color:'#475569', minWidth:88 }}>{g.game_date || '—'}</div>
+                    <div style={{ fontFamily:BC, fontWeight:800, fontSize:13, color:'#f1f5f9', flex:1, minWidth:0 }}>
+                      {g.away_team} {g.away_score != null ? g.away_score : '—'} @ {g.home_team} {g.home_score != null ? g.home_score : '—'}
+                      {g.notes && <span style={{ marginLeft:10, fontFamily:B, fontSize:12, color:'#475569', fontWeight:400 }}>· {g.notes}</span>}
+                    </div>
+                    <button onClick={()=>startEdit(g)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#64748b', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Edit</button>
+                    <button onClick={()=>handleDelete(g.id)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(239,68,68,0.2)', background:'transparent', color:'#f87171', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Del</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </Card>
+  )
+}
+
 // ── Main Portal ───────────────────────────────────────────────────────────────
 
 export default function AdminPortal({ session, onLogout }) {
@@ -369,7 +657,7 @@ export default function AdminPortal({ session, onLogout }) {
     loadSummary()
   }
 
-  const TABS = [['sync','🔄 Sync'],['roster','📋 Options'],['picks','🎯 Picks'],['gms','👤 GMs']]
+  const TABS = [['sync','🔄 Sync'],['roster','📋 Options'],['picks','🎯 Picks'],['stats','📊 Stats'],['gms','👤 GMs']]
 
   return (
     <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#070b12 0%,#0d1525 60%,#070b12 100%)', color:'#f1f5f9', fontFamily:B }}>
@@ -461,6 +749,9 @@ export default function AdminPortal({ session, onLogout }) {
 
         {/* Picks */}
         {tab==='picks' && <PicksTab />}
+
+        {/* Stats */}
+        {tab==='stats' && <StatsTab />}
 
         {/* GMs */}
         {tab==='gms' && (
