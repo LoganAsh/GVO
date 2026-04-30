@@ -165,6 +165,7 @@ export default function LeagueApp() {
   const [tab, setTab] = useState("roster");
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [teamsExpanded, setTeamsExpanded] = useState(true);
   const drawerRef = useRef(null);
   const lastFocusRef = useRef(null);
 
@@ -325,12 +326,29 @@ export default function LeagueApp() {
         <div style={{padding:"14px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>🏀</div>
-            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:"#f1f5f9"}}>TEAMS</span>
+            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:"#f1f5f9"}}>MENU</span>
           </div>
           <button onClick={()=>setSidebarOpen(false)} aria-label="Close teams menu"
             style={{background:"none",border:"none",color:"#64748b",fontSize:20,cursor:"pointer",padding:"4px 8px"}}>✕</button>
         </div>
-        <TeamList/>
+        <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
+          <button onClick={()=>setTeamsExpanded(v=>!v)} aria-expanded={teamsExpanded}
+            style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"none",border:"none",borderBottom:"1px solid rgba(255,255,255,0.04)",color:"#94a3b8",cursor:"pointer",textAlign:"left",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
+            <span>Teams</span>
+            <span aria-hidden="true" style={{display:"inline-block",fontSize:10,color:"#64748b",transition:"transform 0.18s ease",transform:teamsExpanded?"rotate(90deg)":"rotate(0deg)"}}>▶</span>
+          </button>
+          {teamsExpanded && <TeamList/>}
+        </div>
+        <div style={{borderTop:"1px solid rgba(255,255,255,0.06)",padding:"12px 14px"}}>
+          <a href="/admin/login"
+            style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:7,color:"#cbd5e1",textDecoration:"none",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <span>Admin Sign-In</span>
+          </a>
+        </div>
       </div>
     </>
   );
