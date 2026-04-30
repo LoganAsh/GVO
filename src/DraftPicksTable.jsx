@@ -176,9 +176,16 @@ export default function DraftPicksTable({ teamAbbr }) {
                             {i < arr.length - 1 && <span style={{ color: '#475569', fontSize: 11 }}>⇄</span>}
                           </span>
                         ))}
-                        <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
-                          · {pick.owned_by} takes {pick.swap_direction === 'best' ? 'better' : 'worse'}
-                        </span>
+                        {pick.worst_team ? (
+                          <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
+                            · <span style={{ color: '#94a3b8' }}>{pick.owned_by}</span> best ·
+                            {' '}<span style={{ color: '#94a3b8' }}>{pick.worst_team}</span> worst
+                          </span>
+                        ) : (
+                          <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
+                            · {pick.owned_by} takes {pick.swap_direction === 'best' ? 'better' : 'worse'}
+                          </span>
+                        )}
                       </>
                     ) : (
                       // Multi-team swap

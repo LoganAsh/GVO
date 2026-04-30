@@ -55,17 +55,16 @@ function PicksTab() {
   const handleSave = async () => {
     setSaving(true); setSaveError(null)
     const isSwap = form.pick_type !== 'own'
-    const isMulti = form.pick_type === 'multi_swap'
-    // For multi-team swaps the recipient model is role-based: owned_by gets best,
-    // worst_team gets worst, the remaining team(s) implicitly take 2nd best.
+    // Both swap types use a role-based recipient model: owned_by gets best,
+    // worst_team gets worst, and (for multi_swap) any remaining swap_teams take 2nd best.
     const payload = {
       year: Number(form.year), round: Number(form.round),
       pick_type: form.pick_type,
       original_team: form.original_team,
       owned_by: form.owned_by,
-      worst_team: isMulti ? (form.worst_team || null) : null,
+      worst_team: isSwap ? (form.worst_team || null) : null,
       swap_teams: isSwap ? form.swap_teams : null,
-      swap_direction: isMulti ? 'best' : (isSwap ? form.swap_direction : null),
+      swap_direction: isSwap ? 'best' : null,
       protection: form.protection || null,
       notes: form.notes || null,
     }
@@ -144,8 +143,10 @@ function PicksTab() {
                     ) : (
                       <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>
                         {(p.swap_teams||[]).join(' ⇄ ')} · {
-                          p.pick_type==='multi_swap' && p.worst_team
-                            ? `${p.owned_by} best · ${(p.swap_teams||[]).filter(t=>t!==p.owned_by && t!==p.worst_team).join(', ')||'—'} 2nd · ${p.worst_team} worst`
+                          p.worst_team
+                            ? (p.pick_type==='multi_swap'
+                                ? `${p.owned_by} best · ${(p.swap_teams||[]).filter(t=>t!==p.owned_by && t!==p.worst_team).join(', ')||'—'} 2nd · ${p.worst_team} worst`
+                                : `${p.owned_by} best · ${p.worst_team} worst`)
                             : `${p.owned_by} takes ${p.swap_direction}`
                         }
                       </span>
@@ -238,49 +239,31 @@ function PicksTab() {
                       {TEAMS.filter(t=>!form.swap_teams.includes(t)).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
                     </select>
                   </div>
-                  {form.pick_type==='swap' ? (
+                  <>
                     <div style={{ display:'flex', gap:12 }}>
                       <div style={{ flex:1 }}>
-                        <label style={labelStyle}>Who Gets The Pick</label>
+                        <label style={labelStyle}>Gets Best</label>
                         <select value={form.owned_by} onChange={e=>set('owned_by',e.target.value)} style={inputStyle}>
-                          {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+                          {(form.swap_teams.length ? form.swap_teams : TEAMS).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
                         </select>
                       </div>
                       <div style={{ flex:1 }}>
-                        <label style={labelStyle}>Takes Which Pick</label>
-                        <select value={form.swap_direction} onChange={e=>set('swap_direction',e.target.value)} style={inputStyle}>
-                          <option value="best">Best (highest)</option>
-                          <option value="worst">Worst (lowest)</option>
+                        <label style={labelStyle}>Gets Worst</label>
+                        <select value={form.worst_team} onChange={e=>set('worst_team',e.target.value)} style={inputStyle}>
+                          <option value="">— None / unspecified</option>
+                          {form.swap_teams.filter(t=>t!==form.owned_by).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
                         </select>
                       </div>
                     </div>
-                  ) : (
-                    <>
-                      <div style={{ display:'flex', gap:12 }}>
-                        <div style={{ flex:1 }}>
-                          <label style={labelStyle}>Gets Best</label>
-                          <select value={form.owned_by} onChange={e=>set('owned_by',e.target.value)} style={inputStyle}>
-                            {(form.swap_teams.length ? form.swap_teams : TEAMS).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
-                          </select>
-                        </div>
-                        <div style={{ flex:1 }}>
-                          <label style={labelStyle}>Gets Worst</label>
-                          <select value={form.worst_team} onChange={e=>set('worst_team',e.target.value)} style={inputStyle}>
-                            <option value="">— None / unspecified</option>
-                            {form.swap_teams.filter(t=>t!==form.owned_by).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
-                          </select>
-                        </div>
+                    {form.pick_type==='multi_swap' && form.worst_team && (
+                      <div style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#475569', textTransform:'uppercase', paddingLeft:2 }}>
+                        Gets 2nd Best:&nbsp;
+                        <span style={{ color:'#94a3b8' }}>
+                          {form.swap_teams.filter(t=>t!==form.owned_by && t!==form.worst_team).join(', ') || '— add more teams —'}
+                        </span>
                       </div>
-                      {form.worst_team && (
-                        <div style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#475569', textTransform:'uppercase', paddingLeft:2 }}>
-                          Gets 2nd Best:&nbsp;
-                          <span style={{ color:'#94a3b8' }}>
-                            {form.swap_teams.filter(t=>t!==form.owned_by && t!==form.worst_team).join(', ') || '— add more teams —'}
-                          </span>
-                        </div>
                       )}
                     </>
-                  )}
                 </>
               )}
 
