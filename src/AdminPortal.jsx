@@ -516,7 +516,10 @@ function StatsTab() {
         body: JSON.stringify({ image: base64, mediaType: file.type || 'image/png' }),
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+      if (!res.ok) {
+        const detail = typeof json?.detail === 'string' ? json.detail : (json?.detail ? JSON.stringify(json.detail).slice(0, 500) : '')
+        throw new Error(`${json?.error || `HTTP ${res.status}`}${detail ? ` — ${detail}` : ''}`)
+      }
       const rows = Array.isArray(json.rows) ? json.rows : []
       if (!rows.length) throw new Error('No rows parsed from image — check the screenshot quality.')
       mergeParsedRows(team, rows)
