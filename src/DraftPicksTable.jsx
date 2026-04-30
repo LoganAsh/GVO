@@ -35,10 +35,11 @@ function TeamChip({ abbr }) {
 }
 
 function PickTypeBadge({ type, direction }) {
+  const multiLabel = direction === 'best' ? 'MULTI ↑' : direction === 'second_best' ? 'MULTI #2' : 'MULTI ↓'
   const cfg = {
     own:        { label: 'OWNS',      bg: 'rgba(96,165,250,0.12)',  c: '#60a5fa' },
     swap:       { label: direction === 'best' ? 'SWAP ↑' : 'SWAP ↓', bg: 'rgba(167,139,250,0.12)', c: '#a78bfa' },
-    multi_swap: { label: direction === 'best' ? 'MULTI ↑' : 'MULTI ↓', bg: 'rgba(251,191,36,0.12)', c: '#fbbf24' },
+    multi_swap: { label: multiLabel, bg: 'rgba(251,191,36,0.12)', c: '#fbbf24' },
   }
   const { label, bg, c } = cfg[type] || cfg.own
   return (
@@ -189,7 +190,7 @@ export default function DraftPicksTable({ teamAbbr }) {
                           </span>
                         ))}
                         <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
-                          · {pick.owned_by} takes {pick.swap_direction === 'best' ? 'best' : 'worst'}
+                          · {pick.owned_by} takes {pick.swap_direction === 'best' ? 'best' : pick.swap_direction === 'second_best' ? '2nd best' : 'worst'}
                         </span>
                       </>
                     )}

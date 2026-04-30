@@ -216,6 +216,7 @@ function PicksTab() {
                       <label style={labelStyle}>Takes Which Pick</label>
                       <select value={form.swap_direction} onChange={e=>set('swap_direction',e.target.value)} style={inputStyle}>
                         <option value="best">Best (highest)</option>
+                        {form.pick_type==='multi_swap' && <option value="second_best">Takes 2nd Best</option>}
                         <option value="worst">Worst (lowest)</option>
                       </select>
                     </div>
