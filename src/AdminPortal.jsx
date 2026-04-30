@@ -31,6 +31,7 @@ function PicksTab() {
   const [editId, setEditId]       = useState(null)
   const [form, setForm]           = useState(EMPTY_PICK)
   const [saving, setSaving]       = useState(false)
+  const [saveError, setSaveError] = useState(null)
   const [filterTeam, setFilter]   = useState('ALL')
 
   useEffect(() => { loadPicks() }, [])
@@ -42,11 +43,15 @@ function PicksTab() {
     setLoading(false)
   }
 
-  const openNew  = () => { setForm(EMPTY_PICK); setEditId(null); setShowForm(true) }
-  const openEdit = p  => { setForm({ year:p.year, round:p.round, pick_type:p.pick_type, original_team:p.original_team, owned_by:p.owned_by, swap_teams:p.swap_teams||[], swap_direction:p.swap_direction||'best', protection:p.protection||'', notes:p.notes||'' }); setEditId(p.id); setShowForm(true) }
+  const openNew  = () => {
+    const team = filterTeam !== 'ALL' ? filterTeam : EMPTY_PICK.original_team
+    setForm({ ...EMPTY_PICK, original_team: team, owned_by: team })
+    setEditId(null); setSaveError(null); setShowForm(true)
+  }
+  const openEdit = p  => { setForm({ year:p.year, round:p.round, pick_type:p.pick_type, original_team:p.original_team, owned_by:p.owned_by, swap_teams:p.swap_teams||[], swap_direction:p.swap_direction||'best', protection:p.protection||'', notes:p.notes||'' }); setEditId(p.id); setSaveError(null); setShowForm(true) }
 
   const handleSave = async () => {
-    setSaving(true)
+    setSaving(true); setSaveError(null)
     const isSwap = form.pick_type !== 'own'
     const payload = {
       year: Number(form.year), round: Number(form.round),
@@ -58,9 +63,12 @@ function PicksTab() {
       protection: form.protection || null,
       notes: form.notes || null,
     }
-    if (editId) await supabase.from('draft_picks').update(payload).eq('id', editId)
-    else        await supabase.from('draft_picks').insert(payload)
-    setSaving(false); setShowForm(false); loadPicks()
+    const { error } = editId
+      ? await supabase.from('draft_picks').update(payload).eq('id', editId)
+      : await supabase.from('draft_picks').insert(payload)
+    setSaving(false)
+    if (error) { setSaveError(error.message || String(error)); return }
+    setShowForm(false); loadPicks()
   }
 
   const handleDelete = async id => {
@@ -128,6 +136,12 @@ function PicksTab() {
         <div onClick={()=>setShowForm(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:'#0d1525', border:'1px solid rgba(255,255,255,0.1)', borderRadius:16, padding:28, width:'100%', maxWidth:540, maxHeight:'90vh', overflowY:'auto' }}>
             <div style={{ fontFamily:BC, fontWeight:900, fontSize:18, marginBottom:20 }}>{editId ? 'Edit Pick' : 'Add Pick'}</div>
+            {saveError && (
+              <div style={{ background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, padding:'10px 12px', marginBottom:16, color:'#fca5a5', fontFamily:B, fontSize:12 }}>
+                <div style={{ fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, textTransform:'uppercase', color:'#f87171', marginBottom:2 }}>Save failed</div>
+                {saveError}
+              </div>
+            )}
 
             <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
               {/* Year + Round */}
