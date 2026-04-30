@@ -63,7 +63,7 @@ function CapRow({ capSpace }) {
   );
 }
 
-function RosterTable({ players }) {
+function RosterTable({ players, seasonLabels = [] }) {
   if (!players || !players.length) return (
     <div style={{padding:48,textAlign:"center",color:"#475569"}}>
       <div style={{fontSize:28,marginBottom:8}}>📋</div>
@@ -76,7 +76,7 @@ function RosterTable({ players }) {
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
         <thead>
           <tr style={{borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
-            {["#","Player","Pos","OVR",...Array.from({length:maxSal},(_,i)=>`Yr ${i+1}`)].map(h=>(
+            {["#","Player","Pos","OVR",...Array.from({length:maxSal},(_,i)=>i===0?"Current":(seasonLabels[i]||`Yr ${i+1}`))].map(h=>(
               <th key={h} style={{textAlign:h==="Player"?"left":"center",padding:"9px 12px",color:"#475569",fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:2,textTransform:"uppercase",fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>
             ))}
           </tr>
@@ -170,6 +170,7 @@ export default function LeagueApp() {
   const [rostersByTeam, setRostersByTeam] = useState({});
   const [summaryByTeam, setSummaryByTeam] = useState({});
   const [picksByTeam, setPicksByTeam] = useState({});
+  const [seasonLabels, setSeasonLabels] = useState([]);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [loadError, setLoadError] = useState(null);
 
@@ -177,15 +178,17 @@ export default function LeagueApp() {
     let cancelled = false;
     (async () => {
       try {
-        const [rosterRes, summaryRes, picksRes] = await Promise.all([
+        const [rosterRes, summaryRes, picksRes, headersRes] = await Promise.all([
           supabase.from("roster").select("team_abbr,player_name,position,ovr,salary_yr1,salary_yr2,salary_yr3,salary_yr4,salary_yr5,salary_yr1_label,salary_yr2_label,salary_yr3_label,salary_yr4_label,salary_yr5_label,option_type").order("id"),
           supabase.from("league_summary").select("team_abbr,gm,avg_ovr,cap_space_with_holds"),
           supabase.from("draft_picks").select("team_abbr,pick_year,from_team").order("pick_year"),
+          supabase.from("season_headers").select("year_index,label").order("year_index"),
         ]);
         if (cancelled) return;
         if (rosterRes.error) throw rosterRes.error;
         if (summaryRes.error) throw summaryRes.error;
         if (picksRes.error) throw picksRes.error;
+        if (headersRes.error) throw headersRes.error;
 
         const num = (v) => (v == null || v === "" ? 0 : Number(v));
         const r = {};
@@ -220,6 +223,11 @@ export default function LeagueApp() {
         setRostersByTeam(r);
         setSummaryByTeam(s);
         setPicksByTeam(p);
+        const labels = [];
+        for (const row of headersRes.data || []) {
+          if (row.year_index >= 1 && row.year_index <= 5) labels[row.year_index - 1] = row.label || "";
+        }
+        setSeasonLabels(labels);
         setDataLoaded(true);
       } catch (e) {
         if (!cancelled) setLoadError(e.message || String(e));
@@ -447,7 +455,7 @@ export default function LeagueApp() {
 
             {/* Content */}
             <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,overflow:"hidden"}}>
-              {tab==="roster"&&<RosterTable players={players}/>}
+              {tab==="roster"&&<RosterTable players={players} seasonLabels={seasonLabels}/>}
               {tab==="picks"&&<PicksTable picks={picks}/>}
             </div>
           </div>
