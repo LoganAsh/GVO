@@ -225,6 +225,12 @@ function PicksTab() {
               {(form.pick_type==='swap'||form.pick_type==='multi_swap') && (
                 <>
                   <div>
+                    <label style={labelStyle}>Original Team</label>
+                    <select value={form.original_team} onChange={e=>set('original_team',e.target.value)} style={inputStyle}>
+                      {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+                    </select>
+                  </div>
+                  <div>
                     <label style={labelStyle}>Teams in Swap</label>
                     <div style={{ display:'flex', gap:6, marginBottom:8, flexWrap:'wrap' }}>
                       {form.swap_teams.map(t=>(
@@ -244,14 +250,14 @@ function PicksTab() {
                       <div style={{ flex:1 }}>
                         <label style={labelStyle}>Gets Best</label>
                         <select value={form.owned_by} onChange={e=>set('owned_by',e.target.value)} style={inputStyle}>
-                          {(form.swap_teams.length ? form.swap_teams : TEAMS).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+                          {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
                         </select>
                       </div>
                       <div style={{ flex:1 }}>
                         <label style={labelStyle}>Gets Worst</label>
                         <select value={form.worst_team} onChange={e=>set('worst_team',e.target.value)} style={inputStyle}>
                           <option value="">— None / unspecified</option>
-                          {form.swap_teams.filter(t=>t!==form.owned_by).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
+                          {TEAMS.filter(t=>t!==form.owned_by).map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
                         </select>
                       </div>
                     </div>
