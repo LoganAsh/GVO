@@ -7,6 +7,7 @@ const B  = "'Barlow', sans-serif"
 const TEAMS = ["ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL","MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"]
 const FULL  = {ATL:"Atlanta Hawks",BOS:"Boston Celtics",BKN:"Brooklyn Nets",CHA:"Charlotte Hornets",CHI:"Chicago Bulls",CLE:"Cleveland Cavaliers",DAL:"Dallas Mavericks",DEN:"Denver Nuggets",DET:"Detroit Pistons",GSW:"Golden State Warriors",HOU:"Houston Rockets",IND:"Indiana Pacers",LAC:"LA Clippers",LAL:"LA Lakers",MEM:"Memphis Grizzlies",MIA:"Miami Heat",MIL:"Milwaukee Bucks",MIN:"Minnesota Timberwolves",NOP:"New Orleans Pelicans",NYK:"New York Knicks",OKC:"OKC Thunder",ORL:"Orlando Magic",PHI:"Philadelphia 76ers",PHX:"Phoenix Suns",POR:"Portland Trail Blazers",SAC:"Sacramento Kings",SAS:"San Antonio Spurs",TOR:"Toronto Raptors",UTA:"Utah Jazz",WAS:"Washington Wizards"}
 const SYNC_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/sync-league-data'
+const PARSE_BOX_SCORE_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/parse-box-score'
 
 const inputStyle  = { background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, padding:'9px 12px', color:'#f1f5f9', fontFamily:B, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }
 const labelStyle  = { fontFamily:BC, fontSize:10, letterSpacing:2, color:'#475569', textTransform:'uppercase', display:'block', marginBottom:5 }
@@ -454,6 +455,78 @@ function StatsTab() {
     setStatsByTeam(prev => ({ ...prev, [team]: [...(prev[team]||[]), { player_id: null, player_name: '', dnp: false, ...blankStatRow() }] }))
   }
 
+  const [parsing, setParsing] = useState({})  // { [team]: boolean }
+  const [parseError, setParseError] = useState(null)
+
+  // Apply parsed rows from the vision call into the team's grid.
+  // For each parsed row: if a row with the same normalized name exists, overwrite stats;
+  // otherwise append as a new row. Existing player_id is preserved on a name match.
+  const mergeParsedRows = (team, parsedRows) => {
+    setStatsByTeam(prev => {
+      const existing = (prev[team] || []).slice()
+      const teamRoster = rosterByTeam[team] || []
+      for (const p of parsedRows) {
+        const pn = normalizeName(p.player_name)
+        let idx = -1
+        if (pn) idx = existing.findIndex(r => {
+          const rn = normalizeName(r.player_name)
+          if (!rn) return false
+          if (rn.last !== pn.last) return false
+          // accept if either side has no first initial, or initials match
+          const a = (rn.first || '')[0] || ''
+          const b = (pn.first || '')[0] || ''
+          return !a || !b || a === b
+        })
+        const cells = {}
+        for (const c of STAT_COLS) cells[c.key] = Number(p[c.key]) || 0
+        if (idx >= 0) {
+          existing[idx] = { ...existing[idx], ...cells, player_name: existing[idx].player_name || p.player_name, dnp: false }
+        } else {
+          const matchedId = matchRosterId(p.player_name, teamRoster)
+          existing.push({ player_id: matchedId, player_name: p.player_name, dnp: false, ...cells })
+        }
+      }
+      return { ...prev, [team]: existing }
+    })
+  }
+
+  const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const result = String(reader.result || '')
+      const comma = result.indexOf(',')
+      resolve(comma >= 0 ? result.slice(comma + 1) : result)
+    }
+    reader.onerror = () => reject(reader.error)
+    reader.readAsDataURL(file)
+  })
+
+  const handleParseImage = async (team, file) => {
+    if (!file) return
+    setParseError(null)
+    setParsing(p => ({ ...p, [team]: true }))
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      if (!token) throw new Error('No active admin session — sign in again.')
+      const base64 = await fileToBase64(file)
+      const res = await fetch(PARSE_BOX_SCORE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ image: base64, mediaType: file.type || 'image/png' }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+      const rows = Array.isArray(json.rows) ? json.rows : []
+      if (!rows.length) throw new Error('No rows parsed from image — check the screenshot quality.')
+      mergeParsedRows(team, rows)
+    } catch (e) {
+      setParseError(`Image parse failed for ${team}: ${e.message || e}`)
+    } finally {
+      setParsing(p => ({ ...p, [team]: false }))
+    }
+  }
+
   const resetForm = () => {
     setEditId(null); setSaveError(null)
     setGameDate(today); setHomeTeam('ATL'); setAwayTeam('BOS')
@@ -547,11 +620,18 @@ function StatsTab() {
 
   const TeamGrid = ({ team }) => {
     const rows = statsByTeam[team] || []
+    const isParsing = !!parsing[team]
     return (
       <div style={{ marginBottom: 24 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 8 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom: 8, gap:8, flexWrap:'wrap' }}>
           <div style={{ fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:2, color:'#f1f5f9' }}>{team} {FULL[team]?`— ${FULL[team]}`:''}</div>
-          <button type="button" onClick={()=>addRow(team)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontSize:11, cursor:'pointer' }}>+ Add Player</button>
+          <div style={{ display:'flex', gap:6 }}>
+            <label style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(167,139,250,0.3)', background:isParsing?'rgba(167,139,250,0.08)':'transparent', color: isParsing ? '#475569' : '#a78bfa', fontFamily:BC, fontSize:11, cursor: isParsing ? 'wait' : 'pointer', display:'inline-flex', alignItems:'center', gap:4 }}>
+              {isParsing ? 'Parsing…' : '📷 Parse Image'}
+              <input type="file" accept="image/*" disabled={isParsing} onChange={e=>{ const f=e.target.files?.[0]; e.target.value=''; handleParseImage(team, f) }} style={{ display:'none' }}/>
+            </label>
+            <button type="button" onClick={()=>addRow(team)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontSize:11, cursor:'pointer' }}>+ Add Player</button>
+          </div>
         </div>
         <div style={{ overflowX:'auto', border:'1px solid rgba(255,255,255,0.06)', borderRadius:10 }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontFamily:B, fontSize:12 }}>
@@ -610,6 +690,12 @@ function StatsTab() {
             <div style={{ background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, padding:'10px 12px', marginBottom:16, color:'#fca5a5', fontFamily:B, fontSize:12 }}>
               <div style={{ fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, textTransform:'uppercase', color:'#f87171', marginBottom:2 }}>Save failed</div>
               {saveError}
+            </div>
+          )}
+          {parseError && (
+            <div style={{ background:'rgba(251,191,36,0.08)', border:'1px solid rgba(251,191,36,0.3)', borderRadius:8, padding:'10px 12px', marginBottom:16, color:'#fde68a', fontFamily:B, fontSize:12 }}>
+              <div style={{ fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, textTransform:'uppercase', color:'#fbbf24', marginBottom:2 }}>Image parse failed</div>
+              {parseError}
             </div>
           )}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(140px, 1fr))', gap:12, marginBottom:16 }}>
