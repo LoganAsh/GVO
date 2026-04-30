@@ -106,6 +106,8 @@ function RosterTable({ players, seasonLabels = [] }) {
                 const OPT_CLR = {TO:"#a78bfa",PO:"#34d399",NG:"#2dd4bf","2TO":"#a78bfa"};
                 const is2TOYear = opt==="2TO" && v>0 && nonZero.length>1 && (yi===finalIdx || yi===nonZero[nonZero.length-3]);
                 const salColor = !v?"#1e293b":isCapHold?"#334155":(is2TOYear||(isFinalYear&&opt&&OPT_CLR[opt]))?OPT_CLR[opt]:"#60a5fa";
+                const showOptionTag = opt==="2TO" ? is2TOYear : (isFinalYear && !!OPT_CLR[opt]);
+                const optionTagText = opt==="2TO" ? "TO" : opt;
                 return (
                   <td key={yi} style={{padding:"8px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
@@ -115,6 +117,7 @@ function RosterTable({ players, seasonLabels = [] }) {
                         <span style={{color:salColor,fontWeight:v?600:400,fontVariantNumeric:"tabular-nums",fontSize:13}}>{v?money(v):"—"}</span>
                       )}
                       {isCapHold&&<span style={{color:"#334155",fontSize:9,fontWeight:700,letterSpacing:1,fontFamily:"'Barlow Condensed',sans-serif"}}>HOLD</span>}
+                      {showOptionTag&&<span style={{color:salColor,fontSize:9,fontWeight:700,letterSpacing:1,fontFamily:"'Barlow Condensed',sans-serif"}}>{optionTagText}</span>}
                     </div>
                   </td>
                 );
