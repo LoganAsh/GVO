@@ -8,6 +8,7 @@ const TEAMS = ["ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU"
 const FULL  = {ATL:"Atlanta Hawks",BOS:"Boston Celtics",BKN:"Brooklyn Nets",CHA:"Charlotte Hornets",CHI:"Chicago Bulls",CLE:"Cleveland Cavaliers",DAL:"Dallas Mavericks",DEN:"Denver Nuggets",DET:"Detroit Pistons",GSW:"Golden State Warriors",HOU:"Houston Rockets",IND:"Indiana Pacers",LAC:"LA Clippers",LAL:"LA Lakers",MEM:"Memphis Grizzlies",MIA:"Miami Heat",MIL:"Milwaukee Bucks",MIN:"Minnesota Timberwolves",NOP:"New Orleans Pelicans",NYK:"New York Knicks",OKC:"OKC Thunder",ORL:"Orlando Magic",PHI:"Philadelphia 76ers",PHX:"Phoenix Suns",POR:"Portland Trail Blazers",SAC:"Sacramento Kings",SAS:"San Antonio Spurs",TOR:"Toronto Raptors",UTA:"Utah Jazz",WAS:"Washington Wizards"}
 const SYNC_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/sync-league-data'
 const PARSE_BOX_SCORE_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/parse-box-score'
+const DISCORD_SYNC_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/discord-sync'
 
 const inputStyle  = { background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, padding:'9px 12px', color:'#f1f5f9', fontFamily:B, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }
 const labelStyle  = { fontFamily:BC, fontSize:10, letterSpacing:2, color:'#475569', textTransform:'uppercase', display:'block', marginBottom:5 }
@@ -405,9 +406,10 @@ function StatsTab() {
 
   const loadAll = async () => {
     setLoading(true)
-    const [{ data: rosterRows }, { data: gameRows }] = await Promise.all([
+    const [{ data: rosterRows }, { data: gameRows }, { data: pendingRows }] = await Promise.all([
       supabase.from('roster').select('id,team_abbr,player_name').order('id'),
       supabase.from('games').select('*').order('game_date', { ascending: false }).order('id', { ascending: false }).limit(40),
+      supabase.from('pending_box_scores').select('*').eq('status','pending').order('posted_at', { ascending: false }).limit(40),
     ])
     const byTeam = {}
     for (const r of rosterRows || []) {
@@ -416,7 +418,57 @@ function StatsTab() {
     }
     setRosterByTeam(byTeam)
     setRecentGames(gameRows || [])
+    setPending(pendingRows || [])
     setLoading(false)
+  }
+
+  const pullDiscord = async () => {
+    setDiscordError(null); setDiscordSummary(null)
+    setPullingDiscord(true)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      if (!token) throw new Error('No active admin session.')
+      const res = await fetch(DISCORD_SYNC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify({}),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const detail = typeof json?.detail === 'string' ? json.detail : ''
+        throw new Error(`${json?.error || `HTTP ${res.status}`}${detail ? ` — ${detail.slice(0,300)}` : ''}`)
+      }
+      setDiscordSummary({ fetched: json.fetched ?? 0, created: json.created_count ?? 0, errors: json.error_count ?? 0 })
+      const { data: pendingRows } = await supabase.from('pending_box_scores').select('*').eq('status','pending').order('posted_at', { ascending: false }).limit(40)
+      setPending(pendingRows || [])
+    } catch (e) {
+      setDiscordError(e.message || String(e))
+    } finally {
+      setPullingDiscord(false)
+    }
+  }
+
+  // Drop a pending row's parsed players into the chosen team's grid.
+  // Reuses the same merge-by-name logic as direct image upload.
+  const importPendingTo = (team, pendingRow) => {
+    const rows = Array.isArray(pendingRow.parsed_rows) ? pendingRow.parsed_rows : []
+    if (!rows.length) {
+      setParseError('That pending row has no parsed players to import.')
+      return
+    }
+    mergeParsedRows(team, rows)
+    // Mark approved so it disappears from the pending list. Users can still see
+    // it via Discord history; this is just the local queue.
+    supabase.from('pending_box_scores').update({ status: 'approved' }).eq('id', pendingRow.id).then(() => {
+      setPending(prev => prev.filter(p => p.id !== pendingRow.id))
+    })
+  }
+
+  const rejectPending = async (pendingRow) => {
+    if (!window.confirm('Discard this pending box score?')) return
+    await supabase.from('pending_box_scores').update({ status: 'rejected' }).eq('id', pendingRow.id)
+    setPending(prev => prev.filter(p => p.id !== pendingRow.id))
   }
 
   const seedRowsForTeam = (team) => {
@@ -457,6 +509,10 @@ function StatsTab() {
 
   const [parsing, setParsing] = useState({})  // { [team]: boolean }
   const [parseError, setParseError] = useState(null)
+  const [pending, setPending]               = useState([])
+  const [pullingDiscord, setPullingDiscord] = useState(false)
+  const [discordError, setDiscordError]     = useState(null)
+  const [discordSummary, setDiscordSummary] = useState(null)
 
   // Apply parsed rows from the vision call into the team's grid.
   // For each parsed row: if a row with the same normalized name exists, overwrite stats;
@@ -743,6 +799,52 @@ function StatsTab() {
           </div>
 
           <div style={{ marginTop:32 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10, gap:12, flexWrap:'wrap' }}>
+              <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:2, color:'#475569', textTransform:'uppercase' }}>Discord Pending {pending.length>0 && <span style={{ color:'#a78bfa', marginLeft:6 }}>· {pending.length}</span>}</div>
+              <button onClick={pullDiscord} disabled={pullingDiscord} style={{ padding:'6px 14px', borderRadius:7, border:'1px solid rgba(167,139,250,0.3)', background: pullingDiscord ? 'rgba(167,139,250,0.08)' : 'transparent', color:'#a78bfa', fontFamily:BC, fontSize:11, letterSpacing:1, cursor: pullingDiscord ? 'wait' : 'pointer' }}>
+                {pullingDiscord ? 'Pulling…' : '↺ Pull Discord'}
+              </button>
+            </div>
+            {discordError && (
+              <div style={{ background:'rgba(251,191,36,0.08)', border:'1px solid rgba(251,191,36,0.3)', borderRadius:8, padding:'10px 12px', marginBottom:12, color:'#fde68a', fontFamily:B, fontSize:12 }}>
+                <div style={{ fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, textTransform:'uppercase', color:'#fbbf24', marginBottom:2 }}>Discord pull failed</div>
+                {discordError}
+              </div>
+            )}
+            {discordSummary && (
+              <div style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#475569', textTransform:'uppercase', marginBottom:10 }}>
+                Fetched {discordSummary.fetched} · Added {discordSummary.created} · Errors {discordSummary.errors}
+              </div>
+            )}
+            {pending.length === 0 ? (
+              <div style={{ color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:11, padding:14 }}>NO PENDING DISCORD POSTS</div>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:24 }}>
+                {pending.map(p => (
+                  <div key={p.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 10px', borderRadius:8, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)' }}>
+                    {p.image_url && (
+                      <a href={p.image_url} target="_blank" rel="noopener noreferrer" style={{ display:'block', width:64, height:64, flexShrink:0, borderRadius:6, overflow:'hidden', background:'rgba(0,0,0,0.3)' }}>
+                        <img src={p.image_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
+                      </a>
+                    )}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#94a3b8' }}>
+                        {p.posted_at ? new Date(p.posted_at).toLocaleString() : 'unknown time'}
+                        {p.team_hint && <span style={{ marginLeft:8, color:'#a78bfa' }}>· hint: {p.team_hint}</span>}
+                        <span style={{ marginLeft:8, color:'#475569' }}>· {Array.isArray(p.parsed_rows)?p.parsed_rows.length:0} players</span>
+                      </div>
+                      {p.message_text && <div style={{ fontFamily:B, fontSize:12, color:'#475569', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:2 }}>{p.message_text}</div>}
+                      {p.parse_error && <div style={{ fontFamily:B, fontSize:11, color:'#fbbf24', marginTop:2 }}>parse error: {p.parse_error.slice(0,200)}</div>}
+                    </div>
+                    <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                      <button onClick={()=>importPendingTo(homeTeam, p)} disabled={!Array.isArray(p.parsed_rows) || !p.parsed_rows.length} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(96,165,250,0.3)', background:'transparent', color:'#60a5fa', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Use for {homeTeam}</button>
+                      <button onClick={()=>importPendingTo(awayTeam, p)} disabled={!Array.isArray(p.parsed_rows) || !p.parsed_rows.length} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(96,165,250,0.3)', background:'transparent', color:'#60a5fa', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Use for {awayTeam}</button>
+                      <button onClick={()=>rejectPending(p)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(239,68,68,0.2)', background:'transparent', color:'#f87171', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Discard</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:2, color:'#475569', textTransform:'uppercase', marginBottom:10 }}>Recent Games</div>
             {recentGames.length === 0 ? (
               <div style={{ color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:11, padding:14 }}>NO GAMES YET</div>
