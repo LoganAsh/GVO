@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { getTheme } from './theme'
+import { TargetIcon, LockIcon } from './Icons'
 
 const BC = "'Barlow Condensed', sans-serif"
 const B  = "'Barlow', sans-serif"
@@ -99,7 +100,7 @@ export default function DraftPicksTable({ teamAbbr, theme = "dark" }) {
 
   if (!picks.length) return (
     <div style={{ padding: 48, textAlign: 'center', color: t.tableTextSubtle, background: t.tableBg }}>
-      <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
+      <div style={{ marginBottom: 8, display: 'inline-flex' }}><TargetIcon size={28}/></div>
       <div style={{ fontFamily: BC, letterSpacing: 2, fontSize: 13 }}>NO PICKS ON FILE</div>
       <div style={{ fontSize: 12, marginTop: 6, color: t.tableTextVeryMuted }}>Add picks via the Admin Portal</div>
     </div>
@@ -209,8 +210,9 @@ export default function DraftPicksTable({ teamAbbr, theme = "dark" }) {
                         <span style={{
                           background: 'rgba(249,115,22,0.1)', color: '#f97316',
                           borderRadius: 4, padding: '1px 7px',
-                          fontFamily: BC, fontSize: 10, fontWeight: 700, letterSpacing: 0.5
-                        }}>🔒 {pick.protection}</span>
+                          fontFamily: BC, fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+                          display: 'inline-flex', alignItems: 'center', gap: 4
+                        }}><LockIcon size={10}/> {pick.protection}</span>
                       )}
                       {pick.notes && (
                         <span style={{ color: t.tableTextSubtle, fontSize: 12, fontFamily: B, lineHeight: 1.4 }}>{pick.notes}</span>

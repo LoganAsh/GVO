@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from './supabase'
+import { BasketballIcon } from './Icons'
 
 const BC = "'Barlow Condensed', sans-serif"
 const B = "'Barlow', sans-serif"
@@ -39,8 +40,8 @@ export default function AdminLogin({ onLogin }) {
             width: 52, height: 52, borderRadius: 12,
             background: 'linear-gradient(135deg,#f97316,#ef4444)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 26, margin: '0 auto 16px'
-          }}>🏀</div>
+            color: '#fff', margin: '0 auto 16px'
+          }}><BasketballIcon size={28}/></div>
           <div style={{ fontFamily: BC, fontWeight: 900, fontSize: 22, letterSpacing: 2, color: '#f1f5f9' }}>ADMIN PORTAL</div>
           <div style={{ fontFamily: BC, fontSize: 10, letterSpacing: 3, color: '#475569', marginTop: 4, textTransform: 'uppercase' }}>GVO Sim League · Front Office</div>
         </div>

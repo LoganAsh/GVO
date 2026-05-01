@@ -3,6 +3,7 @@ import { supabase } from "./supabase";
 import DraftPicksTable from "./DraftPicksTable";
 import TeamStatsTable from "./TeamStatsTable";
 import { getTheme } from "./theme";
+import { BasketballIcon, ClipboardIcon, TargetIcon, BarChartIcon, HamburgerIcon } from "./Icons";
 
 const T = {"sat":154647000,"lux":187900000,"a1":195900000,"a2":207800000};
 
@@ -71,7 +72,7 @@ function RosterTable({ players, seasonLabels = [], th }) {
   const t = th || getTheme("dark");
   if (!players || !players.length) return (
     <div style={{padding:48,textAlign:"center",color:t.tableTextSubtle}}>
-      <div style={{fontSize:28,marginBottom:8}}>📋</div>
+      <div style={{marginBottom:8,display:"inline-flex"}}><ClipboardIcon size={28}/></div>
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:2,fontSize:13}}>NO ROSTER DATA</div>
     </div>
   );
@@ -140,7 +141,7 @@ function RosterTable({ players, seasonLabels = [], th }) {
 function PicksTable({ picks }) {
   if (!picks || !picks.length) return (
     <div style={{padding:48,textAlign:"center",color:"#475569"}}>
-      <div style={{fontSize:28,marginBottom:8}}>🎯</div>
+      <div style={{marginBottom:8,display:"inline-flex"}}><TargetIcon size={28}/></div>
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:2,fontSize:13}}>NO PICKS ON FILE</div>
     </div>
   );
@@ -344,7 +345,7 @@ export default function LeagueApp() {
           boxShadow:sidebarOpen?"4px 0 24px rgba(0,0,0,0.18)":"none"}}>
         <div style={{padding:"14px",borderBottom:`1px solid ${th.borderSoft}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
           <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
-            <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>🏀</div>
+            <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",flexShrink:0}}><BasketballIcon size={16}/></div>
             <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>MENU</span>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
@@ -421,7 +422,7 @@ export default function LeagueApp() {
         </div>
         {/* Hero */}
         <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px",textAlign:"center"}}>
-          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:60,height:60,borderRadius:14,background:"linear-gradient(135deg,#f97316,#ef4444)",fontSize:30,marginBottom:18,boxShadow:"0 0 40px rgba(249,115,22,0.3)"}}>🏀</div>
+          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:60,height:60,borderRadius:14,background:"linear-gradient(135deg,#f97316,#ef4444)",color:"#fff",marginBottom:18,boxShadow:"0 0 40px rgba(249,115,22,0.3)"}}><BasketballIcon size={32}/></div>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:th.textSubtle,textTransform:"uppercase",marginBottom:6}}>GVO 25-26 Season</div>
           <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(32px,8vw,68px)",lineHeight:1,marginBottom:6,color:th.text}}>SIM LEAGUE</h1>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:32}}>Front Office Dashboard</div>
@@ -464,7 +465,7 @@ export default function LeagueApp() {
         {/* Desktop Sidebar */}
         <div className="desk" style={{width:200,flexShrink:0,background:th.surface,borderRight:`1px solid ${th.borderSoft}`,display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",overflowY:"auto"}}>
           <button onClick={()=>setPage("landing")} style={{padding:"16px",borderBottom:`1px solid ${th.borderSoft}`,display:"flex",alignItems:"center",gap:10,background:"none",border:"none",cursor:"pointer",textAlign:"left",width:"100%"}}>
-            <div style={{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>🏀</div>
+            <div style={{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",flexShrink:0}}><BasketballIcon size={18}/></div>
             <div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,lineHeight:1,color:th.text}}>GVO SIM LEAGUE</div>
               <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:3,color:th.textSubtle,textTransform:"uppercase"}}>Front Office</div>
@@ -480,9 +481,9 @@ export default function LeagueApp() {
         <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
           {/* Mobile Header */}
           <div className="mob" style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:`1px solid ${th.borderSoft}`,background:th.headerBg,position:"sticky",top:0,zIndex:100}}>
-            <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)} style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 10px",color:th.text,cursor:"pointer",fontSize:15}}>☰</button>
+            <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)} style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 10px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}><HamburgerIcon size={16}/></button>
             <button onClick={()=>setPage("landing")} style={{display:"flex",alignItems:"center",gap:8,background:"none",border:"none",cursor:"pointer"}}>
-              <div style={{width:26,height:26,borderRadius:6,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🏀</div>
+              <div style={{width:26,height:26,borderRadius:6,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}><BasketballIcon size={15}/></div>
               <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>GVO SIM LEAGUE</span>
             </button>
             <span style={{marginLeft:"auto",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,color,letterSpacing:1}}>{sel}</span>
@@ -505,9 +506,9 @@ export default function LeagueApp() {
 
             {/* Tab Switcher */}
             <div style={{display:"flex",gap:3,marginBottom:16,background:th.surfaceAlt,borderRadius:9,padding:3,width:"fit-content"}}>
-              {[["roster","📋 Roster"],["picks","🎯 Picks"],["stats","📊 Stats"]].map(([t,l])=>(
-                <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:1,background:tab===t?"rgba(249,115,22,0.9)":"transparent",color:tab===t?"#fff":th.textMuted}}>
-                  {l}
+              {[["roster", ClipboardIcon, "Roster"], ["picks", TargetIcon, "Picks"], ["stats", BarChartIcon, "Stats"]].map(([key, Icon, label])=>(
+                <button key={key} onClick={()=>setTab(key)} style={{padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:1,background:tab===key?"rgba(249,115,22,0.9)":"transparent",color:tab===key?"#fff":th.textMuted,display:"inline-flex",alignItems:"center",gap:6}}>
+                  <Icon size={13}/><span>{label}</span>
                 </button>
               ))}
             </div>

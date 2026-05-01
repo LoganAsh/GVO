@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { BasketballIcon, ClipboardIcon, TargetIcon, BarChartIcon, SyncIcon, PersonIcon, LockIcon, CameraIcon, HourglassIcon } from './Icons'
 
 const BC = "'Barlow Condensed', sans-serif"
 const B  = "'Barlow', sans-serif"
@@ -107,7 +108,7 @@ function PicksTab() {
 
   return (
     <>
-      <Card title="🎯 Draft Pick Tracker">
+      <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><TargetIcon size={16}/> Draft Pick Tracker</span>}>
         <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:20, flexWrap:'wrap' }}>
           <select value={filterTeam} onChange={e=>setFilter(e.target.value)} style={{ ...inputStyle, width:'auto' }}>
             <option value="ALL">All Teams</option>
@@ -147,7 +148,7 @@ function PicksTab() {
                         <span style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{p.original_team}{p.original_team!==holder?` → ${holder}`:' (own)'}</span>
                       )
                     })()}
-                    {p.protection&&<span style={{ fontFamily:BC, fontSize:10, color:'#f97316', background:'rgba(249,115,22,0.1)', borderRadius:4, padding:'1px 6px' }}>🔒 {p.protection}</span>}
+                    {p.protection&&<span style={{ fontFamily:BC, fontSize:10, color:'#f97316', background:'rgba(249,115,22,0.1)', borderRadius:4, padding:'1px 6px', display:'inline-flex', alignItems:'center', gap:4 }}><LockIcon size={10}/> {p.protection}</span>}
                   </div>
                   {p.pick_type!=='own' && (
                     <div style={{ fontFamily:BC, fontSize:12, color:'#64748b', marginBottom:p.notes?3:0 }}>
@@ -894,7 +895,7 @@ function StatsTab() {
           <div style={{ fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:2, color:'#f1f5f9' }}>{team} {FULL[team]?`— ${FULL[team]}`:''}</div>
           <div style={{ display:'flex', gap:6 }}>
             <label style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(167,139,250,0.3)', background:isParsing?'rgba(167,139,250,0.08)':'transparent', color: isParsing ? '#475569' : '#a78bfa', fontFamily:BC, fontSize:11, cursor: isParsing ? 'wait' : 'pointer', display:'inline-flex', alignItems:'center', gap:4 }}>
-              {isParsing ? 'Parsing…' : '📷 Parse Image'}
+              {isParsing ? 'Parsing…' : <span style={{display:'inline-flex',alignItems:'center',gap:6}}><CameraIcon size={12}/> Parse Image</span>}
               <input type="file" accept="image/*" disabled={isParsing} onChange={e=>{ const f=e.target.files?.[0]; e.target.value=''; handleParseImage(team, f) }} style={{ display:'none' }}/>
             </label>
             <button type="button" onClick={()=>addRow(team)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontSize:11, cursor:'pointer' }}>+ Add Player</button>
@@ -948,7 +949,7 @@ function StatsTab() {
   }
 
   return (
-    <Card title="📊 Game Stats">
+    <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><BarChartIcon size={16}/> Game Stats</span>}>
       {loading ? (
         <div style={{ color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:11, padding:24, textAlign:'center' }}>LOADING…</div>
       ) : (
@@ -1009,8 +1010,9 @@ function StatsTab() {
           <div style={{ marginTop:32 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10, gap:12, flexWrap:'wrap' }}>
               <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:2, color:'#475569', textTransform:'uppercase' }}>Discord Pending {pending.length>0 && <span style={{ color:'#a78bfa', marginLeft:6 }}>· {pending.length}</span>}</div>
-              <button onClick={pullDiscord} disabled={pullingDiscord} style={{ padding:'6px 14px', borderRadius:7, border:'1px solid rgba(167,139,250,0.3)', background: pullingDiscord ? 'rgba(167,139,250,0.08)' : 'transparent', color:'#a78bfa', fontFamily:BC, fontSize:11, letterSpacing:1, cursor: pullingDiscord ? 'wait' : 'pointer' }}>
-                {pullingDiscord ? 'Pulling…' : '↺ Pull Discord'}
+              <button onClick={pullDiscord} disabled={pullingDiscord} style={{ padding:'6px 14px', borderRadius:7, border:'1px solid rgba(167,139,250,0.3)', background: pullingDiscord ? 'rgba(167,139,250,0.08)' : 'transparent', color:'#a78bfa', fontFamily:BC, fontSize:11, letterSpacing:1, cursor: pullingDiscord ? 'wait' : 'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
+                <SyncIcon size={12} spinning={pullingDiscord}/>
+                <span>{pullingDiscord ? 'Pulling…' : 'Pull Discord'}</span>
               </button>
             </div>
             {discordError && (
@@ -1126,13 +1128,19 @@ export default function AdminPortal({ session, onLogout }) {
     loadSummary()
   }
 
-  const TABS = [['sync','🔄 Sync'],['roster','📋 Options'],['picks','🎯 Picks'],['stats','📊 Stats'],['gms','👤 GMs']]
+  const TABS = [
+    ['sync',   SyncIcon,      'Sync'],
+    ['roster', ClipboardIcon, 'Options'],
+    ['picks',  TargetIcon,    'Picks'],
+    ['stats',  BarChartIcon,  'Stats'],
+    ['gms',    PersonIcon,    'GMs'],
+  ]
 
   return (
     <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#070b12 0%,#0d1525 60%,#070b12 100%)', color:'#f1f5f9', fontFamily:B }}>
       <div style={{ background:'rgba(0,0,0,0.4)', borderBottom:'1px solid rgba(255,255,255,0.06)', padding:'14px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          <div style={{ width:32, height:32, borderRadius:8, background:'linear-gradient(135deg,#f97316,#ef4444)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:17 }}>🏀</div>
+          <div style={{ width:32, height:32, borderRadius:8, background:'linear-gradient(135deg,#f97316,#ef4444)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}><BasketballIcon size={18}/></div>
           <div>
             <div style={{ fontFamily:BC, fontWeight:900, fontSize:15, letterSpacing:1 }}>ADMIN PORTAL</div>
             <div style={{ fontFamily:BC, fontSize:9, letterSpacing:3, color:'#475569', textTransform:'uppercase' }}>{session.user.email}</div>
@@ -1146,21 +1154,21 @@ export default function AdminPortal({ session, onLogout }) {
 
       <div style={{ maxWidth:900, margin:'0 auto', padding:'28px 20px' }}>
         <div style={{ display:'flex', gap:3, background:'rgba(255,255,255,0.04)', borderRadius:9, padding:3, width:'fit-content', marginBottom:28 }}>
-          {TABS.map(([t,l])=>(
-            <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 18px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1, background:tab===t?'rgba(249,115,22,0.9)':'transparent', color:tab===t?'#fff':'#64748b' }}>{l}</button>
+          {TABS.map(([key, Icon, label])=>(
+            <button key={key} onClick={()=>setTab(key)} style={{ padding:'8px 18px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1, background:tab===key?'rgba(249,115,22,0.9)':'transparent', color:tab===key?'#fff':'#64748b', display:'inline-flex', alignItems:'center', gap:6 }}><Icon size={13}/><span>{label}</span></button>
           ))}
         </div>
 
         {/* Sync */}
         {tab==='sync' && (
-          <Card title="🔄 Force Sync">
+          <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><SyncIcon size={16}/> Force Sync</span>}>
             <div style={{ display:'flex', gap:12, alignItems:'center', marginBottom:20, flexWrap:'wrap' }}>
               <select value={syncTeam} onChange={e=>setSyncTeam(e.target.value)} style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, padding:'9px 12px', color:'#f1f5f9', fontFamily:B, fontSize:13, outline:'none' }}>
                 <option value="ALL">All Teams</option>
                 {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
               </select>
-              <button onClick={handleSync} disabled={syncing} style={{ padding:'9px 24px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:1, cursor:syncing?'wait':'pointer', opacity:syncing?0.7:1 }}>
-                {syncing?'⏳ Syncing…':'🔄 Run Sync'}
+              <button onClick={handleSync} disabled={syncing} style={{ padding:'9px 24px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:1, cursor:syncing?'wait':'pointer', opacity:syncing?0.7:1, display:'inline-flex', alignItems:'center', gap:8 }}>
+                {syncing ? <><HourglassIcon size={14}/> <span>Syncing…</span></> : <><SyncIcon size={14}/> <span>Run Sync</span></>}
               </button>
             </div>
             <div style={{ fontSize:12, color:'#475569', fontFamily:BC, letterSpacing:1, marginBottom:16 }}>Data syncs automatically every hour. Use this to force an immediate update from the Google Sheet.</div>
@@ -1186,7 +1194,7 @@ export default function AdminPortal({ session, onLogout }) {
 
         {/* Contract Options */}
         {tab==='roster' && (
-          <Card title="📋 Player Contract Options">
+          <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><ClipboardIcon size={16}/> Player Contract Options</span>}>
             <div style={{ marginBottom:16 }}>
               <select value={selectedTeam} onChange={e=>setSelectedTeam(e.target.value)} style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, padding:'9px 12px', color:'#f1f5f9', fontFamily:B, fontSize:13, outline:'none' }}>
                 {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
@@ -1224,7 +1232,7 @@ export default function AdminPortal({ session, onLogout }) {
 
         {/* GMs */}
         {tab==='gms' && (
-          <Card title="👤 GM Names">
+          <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><PersonIcon size={16}/> GM Names</span>}>
             <div style={{ fontSize:11, color:'#475569', fontFamily:BC, letterSpacing:1, marginBottom:16 }}>Edit GM display names shown on team cards and roster pages.</div>
             <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
               {summaryData.map(row=><GMRow key={row.team_abbr} row={row} saving={savingGM[row.team_abbr]} onSave={updateGM}/>)}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { getTheme } from './theme'
+import { BarChartIcon } from './Icons'
 
 const BC = "'Barlow Condensed', sans-serif"
 const B  = "'Barlow', sans-serif"
@@ -62,7 +63,7 @@ export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
   )
   if (!rows.length) return (
     <div style={{ padding:48, textAlign:'center', color:t.tableTextSubtle, background:t.tableBg }}>
-      <div style={{ fontSize:28, marginBottom:8 }}>📊</div>
+      <div style={{ marginBottom:8, display:'inline-flex' }}><BarChartIcon size={28}/></div>
       <div style={{ fontFamily:BC, letterSpacing:2, fontSize:13 }}>NO GAMES LOGGED</div>
       <div style={{ fontSize:12, marginTop:6, color:t.tableTextVeryMuted }}>Add games via the Admin Portal Stats tab</div>
     </div>
