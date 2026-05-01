@@ -27,6 +27,15 @@ export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
   const [rows, setRows]     = useState([])
   const [games, setGames]   = useState({})
   const [loading, setLoading] = useState(true)
+  const [openGames, setOpenGames] = useState(() => new Set())
+
+  // Reset which games are expanded whenever we switch teams.
+  useEffect(() => { setOpenGames(new Set()) }, [teamAbbr])
+  const toggleGame = (id) => setOpenGames(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
 
   useEffect(() => { load() }, [teamAbbr])
 
@@ -123,9 +132,14 @@ export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
         const opp = won ? game.loser_team : game.winner_team
         const teamScore = won ? game.winner_score : game.loser_score
         const oppScore  = won ? game.loser_score : game.winner_score
+        const isOpen = openGames.has(game.id)
         return (
           <div key={game.id}>
-            <div style={{ padding:'8px 14px', display:'flex', alignItems:'center', gap:10, background:t.tableSectionBg, borderBottom:`1px solid ${t.tableLine}` }}>
+            <button onClick={()=>toggleGame(game.id)} aria-expanded={isOpen}
+              style={{ width:'100%', padding:'8px 14px', display:'flex', alignItems:'center', gap:10, background:t.tableSectionBg, borderBottom:`1px solid ${t.tableLine}`, border:'none', borderTop:'none', borderLeft:'none', borderRight:'none', cursor:'pointer', textAlign:'left' }}>
+              <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color:t.tableTextSubtle, transition:'transform 0.18s ease', transform:isOpen?'rotate(90deg)':'rotate(0deg)', flexShrink:0 }}>
+                <path d="M3 1.5L7 5L3 8.5"/>
+              </svg>
               <div style={{ fontFamily:BC, fontWeight:700, fontSize:10, letterSpacing:1.5, color:t.tableTextSubtle, minWidth:84 }}>{game.game_date || '—'}</div>
               <div style={{ fontFamily:BC, fontSize:12, color:t.tableText }}>{opp || '—'}</div>
               {teamScore != null && oppScore != null && (
@@ -134,7 +148,8 @@ export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
                 </div>
               )}
               {game.notes && <div style={{ fontFamily:B, fontSize:11, color:t.tableTextSubtle, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>· {game.notes}</div>}
-            </div>
+            </button>
+            {isOpen && (
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr>
@@ -164,6 +179,7 @@ export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
                 ))}
               </tbody>
             </table>
+            )}
           </div>
         )
       })}
