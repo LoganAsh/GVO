@@ -44,7 +44,8 @@ function capStatus(capSpace) {
   return { label:"Under Cap", color:"#34d399" };
 }
 
-function CapRow({ capSpace }) {
+function CapRow({ capSpace, th }) {
+  const t = th || getTheme("dark");
   const payroll = T.sat - capSpace;
   const st = capStatus(capSpace);
   const items = [
@@ -54,11 +55,11 @@ function CapRow({ capSpace }) {
     { label:"2nd Apron", val:-(payroll-T.a2),  color:"#f43f5e" },
   ];
   return (
-    <div style={{background:"rgba(255,255,255,0.04)",borderRadius:10,padding:"12px 16px",marginBottom:18,border:"1px solid rgba(255,255,255,0.07)",display:"flex",flexWrap:"wrap",gap:"12px 24px",alignItems:"center"}}>
+    <div style={{background:t.tableHeaderBg,borderRadius:10,padding:"12px 16px",marginBottom:18,border:`1px solid ${t.border}`,display:"flex",flexWrap:"wrap",gap:"12px 24px",alignItems:"center"}}>
       <span style={{background:st.color+"22",color:st.color,borderRadius:6,padding:"3px 10px",fontSize:11,fontWeight:700,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:1,flexShrink:0}}>{st.label}</span>
       {items.map(({label,val,color})=>(
         <div key={label} style={{display:"flex",flexDirection:"column",gap:1}}>
-          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:2,color:"#475569",textTransform:"uppercase"}}>{label}</span>
+          <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:2,color:t.tableTextSubtle,textTransform:"uppercase"}}>{label}</span>
           <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:14,fontWeight:700,color,letterSpacing:0.5,fontVariantNumeric:"tabular-nums"}}>{money(val)}</span>
         </div>
       ))}
@@ -500,7 +501,7 @@ export default function LeagueApp() {
             </div>
 
             {/* Cap Row */}
-            {info.cap!=null&&<CapRow capSpace={info.cap}/>}
+            {info.cap!=null&&<CapRow capSpace={info.cap} th={th}/>}
 
             {/* Tab Switcher */}
             <div style={{display:"flex",gap:3,marginBottom:16,background:th.surfaceAlt,borderRadius:9,padding:3,width:"fit-content"}}>
