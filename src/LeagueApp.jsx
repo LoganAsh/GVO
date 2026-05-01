@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import DraftPicksTable from "./DraftPicksTable";
 import TeamStatsTable from "./TeamStatsTable";
+import Standings from "./Standings";
+import Leaderboard from "./Leaderboard";
+import LeagueStats from "./LeagueStats";
 import { getTheme } from "./theme";
 import { BasketballIcon, ClipboardIcon, TargetIcon, BarChartIcon, HamburgerIcon } from "./Icons";
 
@@ -174,6 +177,7 @@ export default function LeagueApp() {
   const [page, setPage] = useState("landing"); // "landing" | "team"
   const [sel, setSel] = useState("WAS");
   const [tab, setTab] = useState("roster");
+  const [leagueTab, setLeagueTab] = useState("standings"); // landing-page tabs
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [teamsExpanded, setTeamsExpanded] = useState(true);
@@ -399,7 +403,7 @@ export default function LeagueApp() {
     const ovrTeams = TEAMS.filter(t => summaryByTeam[t]?.ovr != null);
     const avgOvr = ovrTeams.length ? (ovrTeams.reduce((s,t)=>s+summaryByTeam[t].ovr,0)/ovrTeams.length).toFixed(1) : "—";
     return (
-      <div style={{height:"100vh",background:th.bgGradient,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{minHeight:"100vh",background:th.bgGradient,display:"flex",flexDirection:"column"}}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
           *{box-sizing:border-box;margin:0;padding:0}
@@ -413,28 +417,37 @@ export default function LeagueApp() {
         <div style={{display:"flex",alignItems:"center",padding:"14px 20px",borderBottom:`1px solid ${th.borderSoft}`,flexShrink:0}}>
           <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
             style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:8,padding:"9px 11px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
-            <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
-              <rect x="0" y="0" width="18" height="2" rx="1" fill="currentColor"/>
-              <rect x="0" y="6" width="18" height="2" rx="1" fill="currentColor"/>
-              <rect x="0" y="12" width="18" height="2" rx="1" fill="currentColor"/>
-            </svg>
+            <HamburgerIcon size={16}/>
           </button>
         </div>
-        {/* Hero */}
-        <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px",textAlign:"center"}}>
-          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:60,height:60,borderRadius:14,background:"linear-gradient(135deg,#f97316,#ef4444)",color:"#fff",marginBottom:18,boxShadow:"0 0 40px rgba(249,115,22,0.3)"}}><BasketballIcon size={32}/></div>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:th.textSubtle,textTransform:"uppercase",marginBottom:6}}>GVO 25-26 Season</div>
-          <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(32px,8vw,68px)",lineHeight:1,marginBottom:6,color:th.text}}>SIM LEAGUE</h1>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:32}}>Front Office Dashboard</div>
+        {/* Compact hero */}
+        <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"28px 20px 12px",textAlign:"center"}}>
+          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:54,height:54,borderRadius:14,background:"linear-gradient(135deg,#f97316,#ef4444)",color:"#fff",marginBottom:14,boxShadow:"0 0 40px rgba(249,115,22,0.25)"}}><BasketballIcon size={28}/></div>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:th.textSubtle,textTransform:"uppercase",marginBottom:4}}>GVO 25-26 Season</div>
+          <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(26px,5vw,44px)",lineHeight:1,marginBottom:4,color:th.text}}>SIM LEAGUE</h1>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:18}}>Front Office Dashboard</div>
           <div style={{display:"inline-flex",background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:12,overflow:"hidden",flexWrap:"wrap",justifyContent:"center"}}>
             {[["30","Teams"],[avgOvr,"Avg OVR"],["$154.6M","Salary Cap"],["$187.9M","Luxury Tax"]].map(([v,l],i,arr)=>(
-              <div key={l} style={{padding:"12px 22px",borderRight:i<arr.length-1?`1px solid ${th.borderSoft}`:"none",minWidth:90}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,color:th.text,lineHeight:1}}>{v}</div>
+              <div key={l} style={{padding:"10px 22px",borderRight:i<arr.length-1?`1px solid ${th.borderSoft}`:"none",minWidth:90}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:18,color:th.text,lineHeight:1}}>{v}</div>
                 <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:2,color:th.textSubtle,textTransform:"uppercase",marginTop:3}}>{l}</div>
               </div>
             ))}
           </div>
-          <div style={{marginTop:24,fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,color:th.textSubtle,textTransform:"uppercase"}}>Open the menu to browse teams →</div>
+        </div>
+        {/* League Tabs */}
+        <div style={{flex:1,maxWidth:1100,width:"100%",margin:"0 auto",padding:"16px 20px 32px"}}>
+          <div style={{display:"flex",gap:3,marginBottom:16,background:th.surfaceAlt,borderRadius:9,padding:3,width:"fit-content"}}>
+            {[["standings", BarChartIcon, "Standings"],["leaderboard", TargetIcon, "Leaderboard"],["league_stats", ClipboardIcon, "League Stats"]].map(([key, Icon, label])=>(
+              <button key={key} onClick={()=>setLeagueTab(key)}
+                style={{padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:1,background:leagueTab===key?"rgba(249,115,22,0.9)":"transparent",color:leagueTab===key?"#fff":th.textMuted,display:"inline-flex",alignItems:"center",gap:6}}>
+                <Icon size={13}/><span>{label}</span>
+              </button>
+            ))}
+          </div>
+          {leagueTab === "standings"    && <Standings    theme={theme}/>}
+          {leagueTab === "leaderboard"  && <Leaderboard  theme={theme}/>}
+          {leagueTab === "league_stats" && <LeagueStats  theme={theme}/>}
         </div>
         {/* Footer */}
         <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"10px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>
