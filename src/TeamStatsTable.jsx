@@ -117,16 +117,15 @@ export default function TeamStatsTable({ teamAbbr }) {
       <div style={{ padding:'12px 14px 6px', background:'rgba(255,255,255,0.03)', borderTop:'1px solid rgba(255,255,255,0.06)', borderBottom:'1px solid rgba(255,255,255,0.06)', fontFamily:BC, fontWeight:900, fontSize:11, letterSpacing:3, color:'#475569', textTransform:'uppercase' }}>Game Log</div>
       {gameRows.map(({ game, rows: gRows }) => {
         if (!game) return null
-        const opp = game.home_team === teamAbbr ? game.away_team : game.home_team
-        const isHome = game.home_team === teamAbbr
-        const teamScore = isHome ? game.home_score : game.away_score
-        const oppScore  = isHome ? game.away_score : game.home_score
-        const won = teamScore != null && oppScore != null && teamScore > oppScore
+        const won = game.winner_team === teamAbbr
+        const opp = won ? game.loser_team : game.winner_team
+        const teamScore = won ? game.winner_score : game.loser_score
+        const oppScore  = won ? game.loser_score : game.winner_score
         return (
           <div key={game.id}>
             <div style={{ padding:'8px 14px', display:'flex', alignItems:'center', gap:10, background:'rgba(255,255,255,0.02)', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
               <div style={{ fontFamily:BC, fontWeight:700, fontSize:10, letterSpacing:1.5, color:'#475569', minWidth:84 }}>{game.game_date || '—'}</div>
-              <div style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{isHome?'vs':'@'} {opp}</div>
+              <div style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{opp || '—'}</div>
               {teamScore != null && oppScore != null && (
                 <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, color: won ? '#34d399' : '#f87171' }}>
                   {won ? 'W' : 'L'} {teamScore}-{oppScore}

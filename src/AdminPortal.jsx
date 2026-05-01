@@ -344,6 +344,68 @@ const STAT_COLS = [
   { key:'fls',      label:'FLS' },
 ]
 
+// NBA team identifiers we'll look for in a Discord recap message.
+const TEAM_NICKNAMES = {
+  ATL: ['Hawks', 'Atlanta'],
+  BOS: ['Celtics', 'Boston'],
+  BKN: ['Nets', 'Brooklyn'],
+  CHA: ['Hornets', 'Charlotte'],
+  CHI: ['Bulls', 'Chicago'],
+  CLE: ['Cavaliers', 'Cavs', 'Cleveland'],
+  DAL: ['Mavericks', 'Mavs', 'Dallas'],
+  DEN: ['Nuggets', 'Denver'],
+  DET: ['Pistons', 'Detroit'],
+  GSW: ['Warriors', 'Golden State', 'GSW'],
+  HOU: ['Rockets', 'Houston'],
+  IND: ['Pacers', 'Indiana'],
+  LAC: ['Clippers', 'LA Clippers'],
+  LAL: ['Lakers', 'LA Lakers'],
+  MEM: ['Grizzlies', 'Memphis'],
+  MIA: ['Heat', 'Miami'],
+  MIL: ['Bucks', 'Milwaukee'],
+  MIN: ['Timberwolves', 'Wolves', 'Minnesota'],
+  NOP: ['Pelicans', 'New Orleans'],
+  NYK: ['Knicks', 'New York'],
+  OKC: ['Thunder', 'OKC', 'Oklahoma City', 'Oklahoma'],
+  ORL: ['Magic', 'Orlando'],
+  PHI: ['76ers', 'Sixers', 'Philadelphia'],
+  PHX: ['Suns', 'Phoenix'],
+  POR: ['Trail Blazers', 'Blazers', 'Portland'],
+  SAC: ['Kings', 'Sacramento'],
+  SAS: ['Spurs', 'San Antonio'],
+  TOR: ['Raptors', 'Toronto'],
+  UTA: ['Jazz', 'Utah'],
+  WAS: ['Wizards', 'Washington'],
+}
+
+// Parse a recap line like:
+//   "Wolves (4-2) trounce the Kings (2-4) and move on ... 140-111"
+// Returns the first-mentioned team as winner, the next distinct team as loser,
+// and the LAST hyphenated game-style score (rejects 1-digit-1-digit records).
+function parseGameInfo(text) {
+  if (!text || typeof text !== 'string') return null
+  const occurrences = []
+  for (const [abbr, names] of Object.entries(TEAM_NICKNAMES)) {
+    let bestIdx = -1
+    for (const name of names) {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const re = new RegExp(`\\b${escaped}\\b`, 'i')
+      const m = text.match(re)
+      if (m && m.index != null && (bestIdx === -1 || m.index < bestIdx)) bestIdx = m.index
+    }
+    if (bestIdx >= 0) occurrences.push({ abbr, idx: bestIdx })
+  }
+  occurrences.sort((a, b) => a.idx - b.idx)
+  const winner = occurrences[0]?.abbr || null
+  const loser = occurrences.find(o => o.abbr !== winner)?.abbr || null
+  // Final game score: at least two digits per side avoids matching W/L records like (4-2).
+  const scoreMatches = [...text.matchAll(/\b(\d{2,3})\s*-\s*(\d{2,3})\b/g)]
+  const last = scoreMatches[scoreMatches.length - 1]
+  const winnerScore = last ? Number(last[1]) : null
+  const loserScore  = last ? Number(last[2]) : null
+  return { winner, loser, winnerScore, loserScore }
+}
+
 const blankStatRow = () => Object.fromEntries(STAT_COLS.map(c => [c.key, 0]))
 const isAllZero = r => STAT_COLS.every(c => !Number(r[c.key]))
 
@@ -380,10 +442,10 @@ function matchRosterId(typed, roster) {
 function StatsTab() {
   const today = new Date().toISOString().slice(0, 10)
   const [gameDate, setGameDate]   = useState(today)
-  const [homeTeam, setHomeTeam]   = useState('ATL')
-  const [awayTeam, setAwayTeam]   = useState('BOS')
-  const [homeScore, setHomeScore] = useState('')
-  const [awayScore, setAwayScore] = useState('')
+  const [winnerTeam, setWinnerTeam]   = useState('ATL')
+  const [loserTeam, setLoserTeam]   = useState('BOS')
+  const [winnerScore, setWinnerScore] = useState('')
+  const [loserScore, setLoserScore] = useState('')
   const [notes, setNotes]         = useState('')
   const [editId, setEditId]       = useState(null)
   const [saving, setSaving]       = useState(false)
@@ -400,9 +462,9 @@ function StatsTab() {
   // Re-seed stat rows from roster when teams change (only for new entry, not edits in progress)
   useEffect(() => {
     if (editId) return
-    seedRowsForTeam(homeTeam)
-    seedRowsForTeam(awayTeam)
-  }, [homeTeam, awayTeam, rosterByTeam, editId])
+    seedRowsForTeam(winnerTeam)
+    seedRowsForTeam(loserTeam)
+  }, [winnerTeam, loserTeam, rosterByTeam, editId])
 
   const loadAll = async () => {
     setLoading(true)
@@ -464,15 +526,34 @@ function StatsTab() {
 
   // Drop a pending row's parsed players into the chosen team's grid.
   // Reuses the same merge-by-name logic as direct image upload.
-  const importPendingTo = (team, pendingRow) => {
+  // slot is 'winner' or 'loser'. We try to read the recap text on the pending
+  // row to identify the two teams + final score, pre-fill those into the form,
+  // and import the parsed players into the resulting team's grid.
+  const importPendingTo = (slot, pendingRow) => {
     const rows = Array.isArray(pendingRow.parsed_rows) ? pendingRow.parsed_rows : []
     if (!rows.length) {
       setParseError('That pending row has no parsed players to import.')
       return
     }
-    mergeParsedRows(team, rows)
-    // Mark approved so it disappears from the pending list. Users can still see
-    // it via Discord history; this is just the local queue.
+
+    const info = parseGameInfo(pendingRow.message_text || '')
+    const targetTeam = slot === 'winner'
+      ? (info?.winner || winnerTeam)
+      : (info?.loser  || loserTeam)
+
+    if (info?.winner && info.winner !== winnerTeam) setWinnerTeam(info.winner)
+    if (info?.loser  && info.loser  !== loserTeam ) setLoserTeam(info.loser)
+    if (info?.winnerScore != null) setWinnerScore(String(info.winnerScore))
+    if (info?.loserScore  != null) setLoserScore(String(info.loserScore))
+    if (pendingRow.posted_at && gameDate === today) {
+      setGameDate(new Date(pendingRow.posted_at).toISOString().slice(0, 10))
+    }
+    if (pendingRow.message_text && !notes) {
+      setNotes(pendingRow.message_text.slice(0, 250))
+    }
+
+    mergeParsedRows(targetTeam, rows)
+
     supabase.from('pending_box_scores').update({ status: 'approved' }).eq('id', pendingRow.id).then(() => {
       setPending(prev => prev.filter(p => p.id !== pendingRow.id))
     })
@@ -601,17 +682,17 @@ function StatsTab() {
 
   const resetForm = () => {
     setEditId(null); setSaveError(null)
-    setGameDate(today); setHomeTeam('ATL'); setAwayTeam('BOS')
-    setHomeScore(''); setAwayScore(''); setNotes('')
+    setGameDate(today); setWinnerTeam('ATL'); setLoserTeam('BOS')
+    setWinnerScore(''); setLoserScore(''); setNotes('')
     setStatsByTeam({})
   }
 
   const startEdit = async (g) => {
     setEditId(g.id); setSaveError(null)
     setGameDate(g.game_date || today)
-    setHomeTeam(g.home_team || 'ATL'); setAwayTeam(g.away_team || 'BOS')
-    setHomeScore(g.home_score == null ? '' : String(g.home_score))
-    setAwayScore(g.away_score == null ? '' : String(g.away_score))
+    setWinnerTeam(g.winner_team || 'ATL'); setLoserTeam(g.loser_team || 'BOS')
+    setWinnerScore(g.winner_score == null ? '' : String(g.winner_score))
+    setLoserScore(g.loser_score == null ? '' : String(g.loser_score))
     setNotes(g.notes || '')
     const { data: rows } = await supabase.from('player_stats').select('*').eq('game_id', g.id).order('id')
     const byTeam = {}
@@ -623,7 +704,7 @@ function StatsTab() {
     }
     // Add any roster players that weren't in the saved game so the admin can mark
     // them DNP if they meant to. New rows go below the saved ones.
-    for (const team of [g.home_team, g.away_team]) {
+    for (const team of [g.winner_team, g.loser_team]) {
       const present = new Set((byTeam[team]||[]).map(r => r.player_id).filter(Boolean))
       const extras = (rosterByTeam[team]||[]).filter(p => !present.has(p.id)).map(p => ({ player_id: p.id, player_name: p.name, dnp: false, ...blankStatRow() }))
       byTeam[team] = [...(byTeam[team]||[]), ...extras]
@@ -636,9 +717,9 @@ function StatsTab() {
     setSaving(true); setSaveError(null)
     const gamePayload = {
       game_date: gameDate || null,
-      home_team: homeTeam, away_team: awayTeam,
-      home_score: homeScore === '' ? null : Number(homeScore),
-      away_score: awayScore === '' ? null : Number(awayScore),
+      winner_team: winnerTeam, loser_team: loserTeam,
+      winner_score: winnerScore === '' ? null : Number(winnerScore),
+      loser_score: loserScore === '' ? null : Number(loserScore),
       notes: notes || null,
     }
     let gameId = editId
@@ -652,17 +733,35 @@ function StatsTab() {
       if (error || !data) { setSaving(false); setSaveError(error?.message || 'Insert failed'); return }
       gameId = data.id
     }
+    // The roster table is delete-then-insert on every sync, so player_ids cached
+    // in state can go stale. Re-fetch the current roster for both teams now and
+    // null-out any player_id that no longer exists; then re-run name matching.
+    const { data: freshRoster } = await supabase
+      .from('roster')
+      .select('id,team_abbr,player_name')
+      .in('team_abbr', [winnerTeam, loserTeam])
+    const freshByTeam = {}
+    const validIds = new Set()
+    for (const r of freshRoster || []) {
+      if (!freshByTeam[r.team_abbr]) freshByTeam[r.team_abbr] = []
+      freshByTeam[r.team_abbr].push({ id: r.id, name: r.player_name })
+      validIds.add(r.id)
+    }
+
     const insertRows = []
-    for (const team of [homeTeam, awayTeam]) {
-      const teamRoster = rosterByTeam[team] || []
+    for (const team of [winnerTeam, loserTeam]) {
+      const teamRoster = freshByTeam[team] || rosterByTeam[team] || []
       for (const r of (statsByTeam[team] || [])) {
         const name = r.player_name?.trim() || ''
         if (!name && !r.player_id) continue
         // Drop rows that are neither DNP nor have any stats — those are unfilled roster entries.
         if (!r.dnp && isAllZero(r)) continue
-        // Try to map free-typed names back to a roster id when missing or stale.
+        // Validate player_id against the freshly fetched roster, fall back to
+        // name-based matching, and finally null out if nothing matches.
         let pid = r.player_id || null
+        if (pid && !validIds.has(pid)) pid = null
         if (!pid || !teamRoster.some(p => p.id === pid)) pid = matchRosterId(name, teamRoster)
+        if (pid && !validIds.has(pid)) pid = null
         const row = {
           game_id: gameId,
           player_id: pid,
@@ -776,32 +875,32 @@ function StatsTab() {
               <input type="date" value={gameDate} onChange={e=>setGameDate(e.target.value)} style={inputStyle}/>
             </div>
             <div>
-              <label style={labelStyle}>Home Team</label>
-              <select value={homeTeam} onChange={e=>setHomeTeam(e.target.value)} style={inputStyle}>
+              <label style={labelStyle}>Winning Team</label>
+              <select value={winnerTeam} onChange={e=>setWinnerTeam(e.target.value)} style={inputStyle}>
                 {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Away Team</label>
-              <select value={awayTeam} onChange={e=>setAwayTeam(e.target.value)} style={inputStyle}>
+              <label style={labelStyle}>Losing Team</label>
+              <select value={loserTeam} onChange={e=>setLoserTeam(e.target.value)} style={inputStyle}>
                 {TEAMS.map(t=><option key={t} value={t}>{t} — {FULL[t]}</option>)}
               </select>
             </div>
             <div>
-              <label style={labelStyle}>Home Score</label>
-              <input type="number" value={homeScore} onChange={e=>setHomeScore(e.target.value)} style={inputStyle}/>
+              <label style={labelStyle}>Winning Score</label>
+              <input type="number" value={winnerScore} onChange={e=>setWinnerScore(e.target.value)} style={inputStyle}/>
             </div>
             <div>
-              <label style={labelStyle}>Away Score</label>
-              <input type="number" value={awayScore} onChange={e=>setAwayScore(e.target.value)} style={inputStyle}/>
+              <label style={labelStyle}>Losing Score</label>
+              <input type="number" value={loserScore} onChange={e=>setLoserScore(e.target.value)} style={inputStyle}/>
             </div>
           </div>
           <div style={{ marginBottom:16 }}>
             <label style={labelStyle}>Notes (optional)</label>
             <input value={notes} onChange={e=>setNotes(e.target.value)} placeholder="e.g. Wolves trounce Kings, conf semifinals" style={inputStyle}/>
           </div>
-          <TeamGrid team={homeTeam}/>
-          <TeamGrid team={awayTeam}/>
+          <TeamGrid team={winnerTeam}/>
+          <TeamGrid team={loserTeam}/>
           <div style={{ display:'flex', gap:10, marginTop:12 }}>
             <button onClick={handleSave} disabled={saving} style={{ padding:'10px 22px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:1, cursor:saving?'wait':'pointer', opacity:saving?0.6:1 }}>
               {saving ? 'Saving…' : (editId ? 'Save Changes' : 'Save Game')}
@@ -851,8 +950,8 @@ function StatsTab() {
                       {p.parse_error && <div style={{ fontFamily:B, fontSize:11, color:'#fbbf24', marginTop:2 }}>parse error: {p.parse_error.slice(0,200)}</div>}
                     </div>
                     <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                      <button onClick={()=>importPendingTo(homeTeam, p)} disabled={!Array.isArray(p.parsed_rows) || !p.parsed_rows.length} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(96,165,250,0.3)', background:'transparent', color:'#60a5fa', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Use for {homeTeam}</button>
-                      <button onClick={()=>importPendingTo(awayTeam, p)} disabled={!Array.isArray(p.parsed_rows) || !p.parsed_rows.length} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(96,165,250,0.3)', background:'transparent', color:'#60a5fa', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Use for {awayTeam}</button>
+                      <button onClick={()=>importPendingTo('winner', p)} disabled={!Array.isArray(p.parsed_rows) || !p.parsed_rows.length} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(96,165,250,0.3)', background:'transparent', color:'#60a5fa', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Use as Winner</button>
+                      <button onClick={()=>importPendingTo('loser', p)} disabled={!Array.isArray(p.parsed_rows) || !p.parsed_rows.length} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(96,165,250,0.3)', background:'transparent', color:'#60a5fa', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Use as Loser</button>
                       <button onClick={()=>rejectPending(p)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(239,68,68,0.2)', background:'transparent', color:'#f87171', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Discard</button>
                     </div>
                   </div>
@@ -868,7 +967,7 @@ function StatsTab() {
                   <div key={g.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.05)' }}>
                     <div style={{ fontFamily:BC, fontWeight:700, fontSize:11, color:'#475569', minWidth:88 }}>{g.game_date || '—'}</div>
                     <div style={{ fontFamily:BC, fontWeight:800, fontSize:13, color:'#f1f5f9', flex:1, minWidth:0 }}>
-                      {g.away_team} {g.away_score != null ? g.away_score : '—'} @ {g.home_team} {g.home_score != null ? g.home_score : '—'}
+                      {g.winner_team || '—'} {g.winner_score != null ? g.winner_score : '—'} – {g.loser_score != null ? g.loser_score : '—'} {g.loser_team || '—'}
                       {g.notes && <span style={{ marginLeft:10, fontFamily:B, fontSize:12, color:'#475569', fontWeight:400 }}>· {g.notes}</span>}
                     </div>
                     <button onClick={()=>startEdit(g)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#64748b', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Edit</button>
