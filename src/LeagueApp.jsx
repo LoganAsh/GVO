@@ -170,6 +170,50 @@ export default function LeagueApp() {
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [teamsExpanded, setTeamsExpanded] = useState(true);
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === "undefined") return "dark";
+    return window.localStorage.getItem("gvo-theme") === "light" ? "light" : "dark";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") window.localStorage.setItem("gvo-theme", theme);
+  }, [theme]);
+
+  // Theme tokens. Light is the cream palette: #EDE8D0 (page bg), #C9C5B1
+  // (borders / secondary surfaces), #4F4D46 (primary text). Other values are
+  // derived rgba shades so subdued labels still have hierarchy.
+  const th = theme === "light" ? {
+    bg: "#EDE8D0",
+    bgGradient: "linear-gradient(160deg,#EDE8D0 0%,#D8D3BB 60%,#EDE8D0 100%)",
+    surface: "#EDE8D0",
+    surfaceAlt: "rgba(79,77,70,0.04)",
+    border: "#C9C5B1",
+    borderSoft: "rgba(79,77,70,0.12)",
+    text: "#4F4D46",
+    textMuted: "rgba(79,77,70,0.75)",
+    textSubtle: "rgba(79,77,70,0.55)",
+    textVeryMuted: "rgba(79,77,70,0.35)",
+    closeBtn: "rgba(79,77,70,0.55)",
+    rowHover: "rgba(79,77,70,0.06)",
+    inputBg: "rgba(79,77,70,0.05)",
+    headerBg: "rgba(79,77,70,0.04)",
+    backdrop: "rgba(79,77,70,0.45)",
+  } : {
+    bg: "#070b12",
+    bgGradient: "linear-gradient(160deg,#070b12 0%,#0d1525 60%,#070b12 100%)",
+    surface: "#0d1525",
+    surfaceAlt: "rgba(255,255,255,0.04)",
+    border: "rgba(255,255,255,0.08)",
+    borderSoft: "rgba(255,255,255,0.06)",
+    text: "#f1f5f9",
+    textMuted: "#94a3b8",
+    textSubtle: "#475569",
+    textVeryMuted: "#334155",
+    closeBtn: "#64748b",
+    rowHover: "rgba(255,255,255,0.04)",
+    inputBg: "rgba(255,255,255,0.06)",
+    headerBg: "rgba(0,0,0,0.3)",
+    backdrop: "rgba(0,0,0,0.65)",
+  };
   const drawerRef = useRef(null);
   const lastFocusRef = useRef(null);
 
@@ -316,38 +360,57 @@ export default function LeagueApp() {
   const drawer = (
     <>
       <div onClick={()=>setSidebarOpen(false)} aria-hidden="true"
-        style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:200,
+        style={{position:"fixed",inset:0,background:th.backdrop,zIndex:200,
           opacity:sidebarOpen?1:0,pointerEvents:sidebarOpen?"auto":"none",
           transition:"opacity 0.22s ease"}}/>
       <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Teams menu"
         inert={sidebarOpen?undefined:""}
-        style={{position:"fixed",top:0,left:0,bottom:0,width:240,background:"#0d1525",
-          borderRight:"1px solid rgba(255,255,255,0.08)",
+        style={{position:"fixed",top:0,left:0,bottom:0,width:240,background:th.surface,
+          borderRight:`1px solid ${th.border}`,
           display:"flex",flexDirection:"column",zIndex:201,
           transform:sidebarOpen?"translateX(0)":"translateX(-100%)",
           transition:"transform 0.25s cubic-bezier(0.4,0,0.2,1)",
-          boxShadow:sidebarOpen?"4px 0 24px rgba(0,0,0,0.4)":"none"}}>
-        <div style={{padding:"14px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>🏀</div>
-            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:"#f1f5f9"}}>MENU</span>
+          boxShadow:sidebarOpen?"4px 0 24px rgba(0,0,0,0.18)":"none"}}>
+        <div style={{padding:"14px",borderBottom:`1px solid ${th.borderSoft}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+            <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>🏀</div>
+            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>MENU</span>
           </div>
-          <button onClick={()=>setSidebarOpen(false)} aria-label="Close teams menu"
-            style={{background:"none",border:"none",color:"#64748b",fontSize:20,cursor:"pointer",padding:"4px 8px"}}>✕</button>
+          <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
+            <button onClick={()=>setTheme(theme==="light"?"dark":"light")}
+              aria-label={theme==="light"?"Switch to dark theme":"Switch to light theme"}
+              title={theme==="light"?"Switch to dark theme":"Switch to light theme"}
+              style={{background:"none",border:"none",color:th.closeBtn,cursor:"pointer",padding:"6px",display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:6}}>
+              {theme==="light" ? (
+                // Moon icon (currently light → click for dark)
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>
+              ) : (
+                // Sun icon (currently dark → click for light)
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4"/>
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+                </svg>
+              )}
+            </button>
+            <button onClick={()=>setSidebarOpen(false)} aria-label="Close teams menu"
+              style={{background:"none",border:"none",color:th.closeBtn,fontSize:20,cursor:"pointer",padding:"4px 8px"}}>✕</button>
+          </div>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",minHeight:0}}>
           <button onClick={()=>setTeamsExpanded(v=>!v)} aria-expanded={teamsExpanded}
-            style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"none",border:"none",borderBottom:"1px solid rgba(255,255,255,0.04)",color:"#94a3b8",cursor:"pointer",textAlign:"left",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
+            style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:"none",border:"none",borderBottom:`1px solid ${th.borderSoft}`,color:th.textMuted,cursor:"pointer",textAlign:"left",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
             <span>Teams</span>
-            <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:"#64748b",transition:"transform 0.18s ease",transform:teamsExpanded?"rotate(90deg)":"rotate(0deg)",flexShrink:0}}>
+            <svg aria-hidden="true" width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:th.closeBtn,transition:"transform 0.18s ease",transform:teamsExpanded?"rotate(90deg)":"rotate(0deg)",flexShrink:0}}>
               <path d="M3 1.5L7 5L3 8.5"/>
             </svg>
           </button>
           {teamsExpanded && <TeamList/>}
         </div>
-        <div style={{borderTop:"1px solid rgba(255,255,255,0.06)",padding:"12px 14px"}}>
+        <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"12px 14px"}}>
           <a href="/admin/login"
-            style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:7,color:"#cbd5e1",textDecoration:"none",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
+            style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:7,color:th.text,textDecoration:"none",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <rect x="3" y="11" width="18" height="11" rx="2"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -364,20 +427,20 @@ export default function LeagueApp() {
     const ovrTeams = TEAMS.filter(t => summaryByTeam[t]?.ovr != null);
     const avgOvr = ovrTeams.length ? (ovrTeams.reduce((s,t)=>s+summaryByTeam[t].ovr,0)/ovrTeams.length).toFixed(1) : "—";
     return (
-      <div style={{height:"100vh",background:"linear-gradient(160deg,#070b12 0%,#0d1525 60%,#070b12 100%)",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+      <div style={{height:"100vh",background:th.bgGradient,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
           *{box-sizing:border-box;margin:0;padding:0}
-          body{background:#070b12;color:#f1f5f9;font-family:'Barlow',sans-serif}
-          input::placeholder{color:#334155}
+          body{background:${th.bg};color:${th.text};font-family:'Barlow',sans-serif}
+          input::placeholder{color:${th.textVeryMuted}}
           ::-webkit-scrollbar{width:5px;height:5px}
           ::-webkit-scrollbar-track{background:transparent}
-          ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:99px}
+          ::-webkit-scrollbar-thumb{background:${th.border};border-radius:99px}
         `}</style>
         {/* Header */}
-        <div style={{display:"flex",alignItems:"center",padding:"14px 20px",borderBottom:"1px solid rgba(255,255,255,0.04)",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",padding:"14px 20px",borderBottom:`1px solid ${th.borderSoft}`,flexShrink:0}}>
           <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
-            style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:8,padding:"9px 11px",color:"#f1f5f9",cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
+            style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:8,padding:"9px 11px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
             <svg width="18" height="14" viewBox="0 0 18 14" aria-hidden="true">
               <rect x="0" y="0" width="18" height="2" rx="1" fill="currentColor"/>
               <rect x="0" y="6" width="18" height="2" rx="1" fill="currentColor"/>
@@ -388,21 +451,21 @@ export default function LeagueApp() {
         {/* Hero */}
         <div style={{flex:1,minHeight:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"24px 20px",textAlign:"center"}}>
           <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:60,height:60,borderRadius:14,background:"linear-gradient(135deg,#f97316,#ef4444)",fontSize:30,marginBottom:18,boxShadow:"0 0 40px rgba(249,115,22,0.3)"}}>🏀</div>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:"#475569",textTransform:"uppercase",marginBottom:6}}>GVO 25-26 Season</div>
-          <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(32px,8vw,68px)",lineHeight:1,marginBottom:6,background:"linear-gradient(135deg,#f1f5f9,#94a3b8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>SIM LEAGUE</h1>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:4,color:"#475569",textTransform:"uppercase",marginBottom:32}}>Front Office Dashboard</div>
-          <div style={{display:"inline-flex",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:12,overflow:"hidden",flexWrap:"wrap",justifyContent:"center"}}>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:th.textSubtle,textTransform:"uppercase",marginBottom:6}}>GVO 25-26 Season</div>
+          <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(32px,8vw,68px)",lineHeight:1,marginBottom:6,color:th.text}}>SIM LEAGUE</h1>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:32}}>Front Office Dashboard</div>
+          <div style={{display:"inline-flex",background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:12,overflow:"hidden",flexWrap:"wrap",justifyContent:"center"}}>
             {[["30","Teams"],[avgOvr,"Avg OVR"],["$154.6M","Salary Cap"],["$187.9M","Luxury Tax"]].map(([v,l],i,arr)=>(
-              <div key={l} style={{padding:"12px 22px",borderRight:i<arr.length-1?"1px solid rgba(255,255,255,0.06)":"none",minWidth:90}}>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,color:"#f1f5f9",lineHeight:1}}>{v}</div>
-                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:2,color:"#475569",textTransform:"uppercase",marginTop:3}}>{l}</div>
+              <div key={l} style={{padding:"12px 22px",borderRight:i<arr.length-1?`1px solid ${th.borderSoft}`:"none",minWidth:90}}>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:20,color:th.text,lineHeight:1}}>{v}</div>
+                <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:2,color:th.textSubtle,textTransform:"uppercase",marginTop:3}}>{l}</div>
               </div>
             ))}
           </div>
-          <div style={{marginTop:24,fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,color:"#475569",textTransform:"uppercase"}}>Open the menu to browse teams →</div>
+          <div style={{marginTop:24,fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,color:th.textSubtle,textTransform:"uppercase"}}>Open the menu to browse teams →</div>
         </div>
         {/* Footer */}
-        <div style={{borderTop:"1px solid rgba(255,255,255,0.04)",padding:"10px 20px",textAlign:"center",color:"#1e293b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>
+        <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"10px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>
           GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
@@ -416,24 +479,24 @@ export default function LeagueApp() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
         *{box-sizing:border-box;margin:0;padding:0}
-        body{background:#070b12;color:#f1f5f9;font-family:'Barlow',sans-serif;min-height:100vh}
+        body{background:${th.bg};color:${th.text};font-family:'Barlow',sans-serif;min-height:100vh}
         ::-webkit-scrollbar{width:5px;height:5px}
         ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:99px}
-        input::placeholder{color:#334155}
+        ::-webkit-scrollbar-thumb{background:${th.border};border-radius:99px}
+        input::placeholder{color:${th.textVeryMuted}}
         @media(max-width:640px){.desk{display:none!important}}
         @media(min-width:641px){.mob{display:none!important}}
       `}</style>
 
-      <div style={{display:"flex",minHeight:"100vh",background:"linear-gradient(160deg,#070b12 0%,#0d1525 60%,#070b12 100%)"}}>
+      <div style={{display:"flex",minHeight:"100vh",background:th.bgGradient}}>
 
         {/* Desktop Sidebar */}
-        <div className="desk" style={{width:200,flexShrink:0,background:"rgba(0,0,0,0.35)",borderRight:"1px solid rgba(255,255,255,0.06)",display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",overflowY:"auto"}}>
-          <button onClick={()=>setPage("landing")} style={{padding:"16px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",gap:10,background:"none",border:"none",cursor:"pointer",textAlign:"left",width:"100%"}}>
+        <div className="desk" style={{width:200,flexShrink:0,background:th.surface,borderRight:`1px solid ${th.borderSoft}`,display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",overflowY:"auto"}}>
+          <button onClick={()=>setPage("landing")} style={{padding:"16px",borderBottom:`1px solid ${th.borderSoft}`,display:"flex",alignItems:"center",gap:10,background:"none",border:"none",cursor:"pointer",textAlign:"left",width:"100%"}}>
             <div style={{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>🏀</div>
             <div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,lineHeight:1,color:"#f1f5f9"}}>GVO SIM LEAGUE</div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:3,color:"#475569",textTransform:"uppercase"}}>Front Office</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,lineHeight:1,color:th.text}}>GVO SIM LEAGUE</div>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:3,color:th.textSubtle,textTransform:"uppercase"}}>Front Office</div>
             </div>
           </button>
           <TeamList/>
@@ -445,11 +508,11 @@ export default function LeagueApp() {
         {/* Main Content */}
         <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
           {/* Mobile Header */}
-          <div className="mob" style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:"1px solid rgba(255,255,255,0.06)",background:"rgba(0,0,0,0.3)",position:"sticky",top:0,zIndex:100}}>
-            <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)} style={{background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"6px 10px",color:"#f1f5f9",cursor:"pointer",fontSize:15}}>☰</button>
+          <div className="mob" style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:`1px solid ${th.borderSoft}`,background:th.headerBg,position:"sticky",top:0,zIndex:100}}>
+            <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)} style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 10px",color:th.text,cursor:"pointer",fontSize:15}}>☰</button>
             <button onClick={()=>setPage("landing")} style={{display:"flex",alignItems:"center",gap:8,background:"none",border:"none",cursor:"pointer"}}>
               <div style={{width:26,height:26,borderRadius:6,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>🏀</div>
-              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:"#f1f5f9"}}>GVO SIM LEAGUE</span>
+              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>GVO SIM LEAGUE</span>
             </button>
             <span style={{marginLeft:"auto",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:800,fontSize:14,color,letterSpacing:1}}>{sel}</span>
           </div>
@@ -457,11 +520,11 @@ export default function LeagueApp() {
           <div style={{flex:1,maxWidth:980,width:"100%",margin:"0 auto",padding:"24px 20px",overflowY:"auto"}}>
             {/* Team Header */}
             <div style={{marginBottom:18}}>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:4,color:"#475569",textTransform:"uppercase",marginBottom:4}}>Team Overview</div>
-              <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(22px,5vw,42px)",lineHeight:1,borderLeft:`4px solid ${color}`,paddingLeft:12,marginBottom:6}}>{FULL[sel]}</h1>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,color:"#475569",textTransform:"uppercase",paddingLeft:12,display:"flex",flexWrap:"wrap",gap:"4px 18px"}}>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:4}}>Team Overview</div>
+              <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(22px,5vw,42px)",lineHeight:1,borderLeft:`4px solid ${color}`,paddingLeft:12,marginBottom:6,color:th.text}}>{FULL[sel]}</h1>
+              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:3,color:th.textSubtle,textTransform:"uppercase",paddingLeft:12,display:"flex",flexWrap:"wrap",gap:"4px 18px"}}>
                 <span>{players.length} Players</span>
-                {info.gm&&<span>GM: <span style={{color:"#94a3b8"}}>{info.gm}</span></span>}
+                {info.gm&&<span>GM: <span style={{color:th.textMuted}}>{info.gm}</span></span>}
                 {info.ovr&&<span>Avg OVR: <span style={{color:"#60a5fa"}}>{info.ovr}</span></span>}
               </div>
             </div>
