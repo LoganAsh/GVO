@@ -429,17 +429,30 @@ function StatsTab() {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData?.session?.access_token
       if (!token) throw new Error('No active admin session.')
-      const res = await fetch(DISCORD_SYNC_URL, {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
-        body: JSON.stringify({}),
-      })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        const detail = typeof json?.detail === 'string' ? json.detail : ''
-        throw new Error(`${json?.error || `HTTP ${res.status}`}${detail ? ` — ${detail.slice(0,300)}` : ''}`)
+      const callDiscord = async (body) => {
+        const res = await fetch(DISCORD_SYNC_URL, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+          body: JSON.stringify(body || {}),
+        })
+        const json = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          const detail = typeof json?.detail === 'string' ? json.detail : ''
+          throw new Error(`${json?.error || `HTTP ${res.status}`}${detail ? ` — ${detail.slice(0,300)}` : ''}`)
+        }
+        return json
       }
-      setDiscordSummary({ fetched: json.fetched ?? 0, created: json.created_count ?? 0, errors: json.error_count ?? 0 })
+      // 1) Poll Discord for new image messages.
+      const pollJson = await callDiscord({})
+      // 2) Re-parse any pending rows that had a parse error.
+      const retryJson = await callDiscord({ retry_failed: true })
+      setDiscordSummary({
+        fetched: pollJson.fetched ?? 0,
+        created: pollJson.created_count ?? 0,
+        errors: pollJson.error_count ?? 0,
+        retried: retryJson.retried ?? 0,
+        recovered: retryJson.recovered ?? 0,
+      })
       const { data: pendingRows } = await supabase.from('pending_box_scores').select('*').eq('status','pending').order('posted_at', { ascending: false }).limit(40)
       setPending(pendingRows || [])
     } catch (e) {
@@ -814,6 +827,7 @@ function StatsTab() {
             {discordSummary && (
               <div style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#475569', textTransform:'uppercase', marginBottom:10 }}>
                 Fetched {discordSummary.fetched} · Added {discordSummary.created} · Errors {discordSummary.errors}
+                {discordSummary.retried ? <span> · Retried {discordSummary.retried}, recovered {discordSummary.recovered}</span> : null}
               </div>
             )}
             {pending.length === 0 ? (
