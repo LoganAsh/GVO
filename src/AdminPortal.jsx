@@ -528,7 +528,9 @@ function StatsTab() {
   // Reuses the same merge-by-name logic as direct image upload.
   // slot is 'winner' or 'loser'. We try to read the recap text on the pending
   // row to identify the two teams + final score, pre-fill those into the form,
-  // and import the parsed players into the resulting team's grid.
+  // and import the parsed players into the resulting team's grid. If the same
+  // Discord message produced exactly one other pending image, we treat it as
+  // the opposite team and import its players too in one click.
   const importPendingTo = (slot, pendingRow) => {
     const rows = Array.isArray(pendingRow.parsed_rows) ? pendingRow.parsed_rows : []
     if (!rows.length) {
@@ -554,8 +556,29 @@ function StatsTab() {
 
     mergeParsedRows(targetTeam, rows)
 
-    supabase.from('pending_box_scores').update({ status: 'approved' }).eq('id', pendingRow.id).then(() => {
-      setPending(prev => prev.filter(p => p.id !== pendingRow.id))
+    // Auto-pair: if the same Discord message produced exactly one other pending
+    // image, treat it as the other team and import it into the opposite slot.
+    let pairedId = null
+    if (pendingRow.discord_message_id) {
+      const siblings = pending.filter(p =>
+        p.id !== pendingRow.id &&
+        p.discord_message_id &&
+        p.discord_message_id === pendingRow.discord_message_id &&
+        Array.isArray(p.parsed_rows) && p.parsed_rows.length
+      )
+      if (siblings.length === 1) {
+        const paired = siblings[0]
+        const otherTeam = slot === 'winner'
+          ? (info?.loser  || loserTeam)
+          : (info?.winner || winnerTeam)
+        mergeParsedRows(otherTeam, paired.parsed_rows)
+        pairedId = paired.id
+      }
+    }
+
+    const idsToApprove = pairedId ? [pendingRow.id, pairedId] : [pendingRow.id]
+    supabase.from('pending_box_scores').update({ status: 'approved' }).in('id', idsToApprove).then(() => {
+      setPending(prev => prev.filter(p => !idsToApprove.includes(p.id)))
     })
   }
 
