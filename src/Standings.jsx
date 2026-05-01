@@ -11,6 +11,7 @@ export default function Standings({ theme = 'dark' }) {
   const t = getTheme(theme)
   const [games, setGames] = useState([])
   const [loading, setLoading] = useState(true)
+  const [conf, setConf] = useState('east') // 'east' | 'west'
 
   useEffect(() => { load() }, [])
 
@@ -59,21 +60,38 @@ export default function Standings({ theme = 'dark' }) {
     <div style={{ padding:40, textAlign:'center', color:t.tableTextSubtle, fontFamily:BC, letterSpacing:2, fontSize:12 }}>LOADING STANDINGS…</div>
   )
 
-  const east = buildConf(EAST)
-  const west = buildConf(WEST)
+  const rows = buildConf(conf === 'east' ? EAST : WEST)
 
-  return (
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(380px, 1fr))', gap:20 }}>
-      <ConfTable title="Eastern Conference" rows={east} t={t}/>
-      <ConfTable title="Western Conference" rows={west} t={t}/>
-    </div>
-  )
-}
-
-function ConfTable({ title, rows, t }) {
   return (
     <div style={{ background:t.tableBg, border:`1px solid ${t.border}`, borderRadius:12, overflow:'hidden' }}>
-      <div style={{ padding:'10px 14px', background:t.tableSectionBg, borderBottom:`1px solid ${t.tableLine}`, fontFamily:BC, fontWeight:900, fontSize:11, letterSpacing:3, color:t.tableTextSubtle, textTransform:'uppercase' }}>{title}</div>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:t.tableSectionBg, borderBottom:`1px solid ${t.tableLine}`, gap:10, flexWrap:'wrap' }}>
+        <div style={{ fontFamily:BC, fontWeight:900, fontSize:11, letterSpacing:3, color:t.tableTextSubtle, textTransform:'uppercase' }}>
+          {conf === 'east' ? 'Eastern Conference' : 'Western Conference'}
+        </div>
+        <div role="tablist" aria-label="Conference"
+          style={{ display:'inline-flex', background:t.surfaceAlt, border:`1px solid ${t.border}`, borderRadius:999, padding:2 }}>
+          {[['east','East'],['west','West']].map(([key, label]) => {
+            const active = conf === key
+            return (
+              <button key={key} role="tab" aria-selected={active} onClick={()=>setConf(key)}
+                style={{
+                  padding:'4px 14px',
+                  borderRadius:999,
+                  border:'none',
+                  cursor: active ? 'default' : 'pointer',
+                  fontFamily:BC,
+                  fontWeight:700,
+                  fontSize:11,
+                  letterSpacing:2,
+                  textTransform:'uppercase',
+                  background: active ? 'rgba(249,115,22,0.9)' : 'transparent',
+                  color: active ? '#fff' : t.tableTextMuted,
+                  transition:'background 0.15s ease',
+                }}>{label}</button>
+            )
+          })}
+        </div>
+      </div>
       <div style={{ overflowX:'auto' }}>
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
           <thead>
