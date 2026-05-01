@@ -22,16 +22,19 @@ export function getTheme(theme) {
       inputBg: "rgba(79,77,70,0.05)",
       headerBg: "rgba(79,77,70,0.04)",
       backdrop: "rgba(79,77,70,0.45)",
-      // Tables and data cards
-      tableBg: "#FFFFFF",
-      tableHeaderBg: "#F5F2E5",
+      // Tables and data cards. Translucent so the cream page bleeds through,
+      // and biased warm so the surface reads softer than pure white.
+      tableBg: "rgba(255,252,243,0.55)",
+      tableHeaderBg: "rgba(201,197,177,0.45)",
       tableLine: "#4F4D46",
       tableText: "#4F4D46",
       tableTextMuted: "rgba(79,77,70,0.78)",
       tableTextSubtle: "rgba(79,77,70,0.6)",
       tableTextVeryMuted: "rgba(79,77,70,0.4)",
-      tableSectionBg: "#F5F2E5",
-      tableStickyBg: "#FFFFFF",
+      tableSectionBg: "rgba(201,197,177,0.32)",
+      // Sticky cells need a fully opaque warm white so scrolled-under content
+      // doesn't bleed through them.
+      tableStickyBg: "#FBF7E8",
       tableRowHover: "rgba(79,77,70,0.05)",
     };
   }
