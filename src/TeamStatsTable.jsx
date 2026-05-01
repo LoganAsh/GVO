@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { getTheme } from './theme'
 
 const BC = "'Barlow Condensed', sans-serif"
 const B  = "'Barlow', sans-serif"
@@ -21,7 +22,8 @@ const PCT_COLS = [
 const fmtPct = (n, d) => (!d ? '—' : `${((n/d)*100).toFixed(1)}%`)
 const fmtAvg = v => (v == null ? '—' : (Math.round(v*10)/10).toFixed(1))
 
-export default function TeamStatsTable({ teamAbbr }) {
+export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
+  const t = getTheme(theme)
   const [rows, setRows]     = useState([])
   const [games, setGames]   = useState({})
   const [loading, setLoading] = useState(true)
@@ -47,13 +49,13 @@ export default function TeamStatsTable({ teamAbbr }) {
   }
 
   if (loading) return (
-    <div style={{ padding:40, textAlign:'center', color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:12 }}>LOADING STATS…</div>
+    <div style={{ padding:40, textAlign:'center', color:t.tableTextVeryMuted, fontFamily:BC, letterSpacing:2, fontSize:12, background:t.tableBg }}>LOADING STATS…</div>
   )
   if (!rows.length) return (
-    <div style={{ padding:48, textAlign:'center', color:'#475569' }}>
+    <div style={{ padding:48, textAlign:'center', color:t.tableTextSubtle, background:t.tableBg }}>
       <div style={{ fontSize:28, marginBottom:8 }}>📊</div>
       <div style={{ fontFamily:BC, letterSpacing:2, fontSize:13 }}>NO GAMES LOGGED</div>
-      <div style={{ fontSize:12, marginTop:6, color:'#334155' }}>Add games via the Admin Portal Stats tab</div>
+      <div style={{ fontSize:12, marginTop:6, color:t.tableTextVeryMuted }}>Add games via the Admin Portal Stats tab</div>
     </div>
   )
 
@@ -81,30 +83,30 @@ export default function TeamStatsTable({ teamAbbr }) {
   }))
 
   return (
-    <div style={{ overflowX:'auto' }}>
+    <div style={{ overflowX:'auto', background:t.tableBg }}>
       {/* Season averages */}
-      <div style={{ padding:'10px 14px', background:'rgba(255,255,255,0.03)', borderBottom:'1px solid rgba(255,255,255,0.06)', fontFamily:BC, fontWeight:900, fontSize:11, letterSpacing:3, color:'#475569', textTransform:'uppercase' }}>Season Averages</div>
+      <div style={{ padding:'10px 14px', background:t.tableSectionBg, borderBottom:`1px solid ${t.tableLine}`, fontFamily:BC, fontWeight:900, fontSize:11, letterSpacing:3, color:t.tableTextSubtle, textTransform:'uppercase' }}>Season Averages</div>
       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
         <thead>
-          <tr style={{ borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
-            <th style={{ textAlign:'left', padding:'8px 12px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase', fontWeight:700 }}>Player</th>
-            <th style={{ textAlign:'center', padding:'8px 6px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>GP</th>
-            {STAT_COLS.map(c => <th key={c.key} style={{ textAlign:'center', padding:'8px 6px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>{c.label}</th>)}
-            {PCT_COLS.map(c => <th key={c.label} style={{ textAlign:'center', padding:'8px 6px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>{c.label}</th>)}
+          <tr style={{ borderBottom:`1px solid ${t.tableLine}` }}>
+            <th style={{ textAlign:'left', padding:'8px 12px', color:t.tableTextSubtle, fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase', fontWeight:700 }}>Player</th>
+            <th style={{ textAlign:'center', padding:'8px 6px', color:t.tableTextSubtle, fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>GP</th>
+            {STAT_COLS.map(c => <th key={c.key} style={{ textAlign:'center', padding:'8px 6px', color:t.tableTextSubtle, fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>{c.label}</th>)}
+            {PCT_COLS.map(c => <th key={c.label} style={{ textAlign:'center', padding:'8px 6px', color:t.tableTextSubtle, fontFamily:BC, fontSize:10, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>{c.label}</th>)}
           </tr>
         </thead>
         <tbody>
           {playerAvgs.map((p, i) => (
-            <tr key={i} style={{ borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
-              <td style={{ padding:'8px 12px', color:'#f1f5f9', fontWeight:600, whiteSpace:'nowrap' }}>{p.player_name}</td>
-              <td style={{ padding:'8px 6px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{p.games}</td>
+            <tr key={i} style={{ borderBottom:`1px solid ${t.tableLine}` }}>
+              <td style={{ padding:'8px 12px', color:t.tableText, fontWeight:600, whiteSpace:'nowrap' }}>{p.player_name}</td>
+              <td style={{ padding:'8px 6px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{p.games}</td>
               {STAT_COLS.map(c => (
-                <td key={c.key} style={{ padding:'8px 6px', textAlign:'center', color:'#cbd5e1', fontVariantNumeric:'tabular-nums' }}>
+                <td key={c.key} style={{ padding:'8px 6px', textAlign:'center', color:t.tableText, fontVariantNumeric:'tabular-nums' }}>
                   {fmtAvg((p[c.key]||0) / p.games)}
                 </td>
               ))}
               {PCT_COLS.map(c => (
-                <td key={c.label} style={{ padding:'8px 6px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>
+                <td key={c.label} style={{ padding:'8px 6px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>
                   {fmtPct(p[c.num]||0, p[c.den]||0)}
                 </td>
               ))}
@@ -114,7 +116,7 @@ export default function TeamStatsTable({ teamAbbr }) {
       </table>
 
       {/* Game log */}
-      <div style={{ padding:'12px 14px 6px', background:'rgba(255,255,255,0.03)', borderTop:'1px solid rgba(255,255,255,0.06)', borderBottom:'1px solid rgba(255,255,255,0.06)', fontFamily:BC, fontWeight:900, fontSize:11, letterSpacing:3, color:'#475569', textTransform:'uppercase' }}>Game Log</div>
+      <div style={{ padding:'12px 14px 6px', background:t.tableSectionBg, borderTop:`1px solid ${t.tableLine}`, borderBottom:`1px solid ${t.tableLine}`, fontFamily:BC, fontWeight:900, fontSize:11, letterSpacing:3, color:t.tableTextSubtle, textTransform:'uppercase' }}>Game Log</div>
       {gameRows.map(({ game, rows: gRows }) => {
         if (!game) return null
         const won = game.winner_team === teamAbbr
@@ -123,41 +125,41 @@ export default function TeamStatsTable({ teamAbbr }) {
         const oppScore  = won ? game.loser_score : game.winner_score
         return (
           <div key={game.id}>
-            <div style={{ padding:'8px 14px', display:'flex', alignItems:'center', gap:10, background:'rgba(255,255,255,0.02)', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
-              <div style={{ fontFamily:BC, fontWeight:700, fontSize:10, letterSpacing:1.5, color:'#475569', minWidth:84 }}>{game.game_date || '—'}</div>
-              <div style={{ fontFamily:BC, fontSize:12, color:'#94a3b8' }}>{opp || '—'}</div>
+            <div style={{ padding:'8px 14px', display:'flex', alignItems:'center', gap:10, background:t.tableSectionBg, borderBottom:`1px solid ${t.tableLine}` }}>
+              <div style={{ fontFamily:BC, fontWeight:700, fontSize:10, letterSpacing:1.5, color:t.tableTextSubtle, minWidth:84 }}>{game.game_date || '—'}</div>
+              <div style={{ fontFamily:BC, fontSize:12, color:t.tableText }}>{opp || '—'}</div>
               {teamScore != null && oppScore != null && (
-                <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, color: won ? '#34d399' : '#f87171' }}>
+                <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, color: won ? '#22a06b' : '#d14545' }}>
                   {won ? 'W' : 'L'} {teamScore}-{oppScore}
                 </div>
               )}
-              {game.notes && <div style={{ fontFamily:B, fontSize:11, color:'#475569', flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>· {game.notes}</div>}
+              {game.notes && <div style={{ fontFamily:B, fontSize:11, color:t.tableTextSubtle, flex:1, minWidth:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>· {game.notes}</div>}
             </div>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr>
-                  <th style={{ textAlign:'left', padding:'6px 12px', color:'#334155', fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>Player</th>
-                  {STAT_COLS.map(c => <th key={c.key} style={{ textAlign:'center', padding:'6px 6px', color:'#334155', fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>{c.label}</th>)}
-                  <th style={{ textAlign:'center', padding:'6px 6px', color:'#334155', fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>FG</th>
-                  <th style={{ textAlign:'center', padding:'6px 6px', color:'#334155', fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>3PT</th>
-                  <th style={{ textAlign:'center', padding:'6px 6px', color:'#334155', fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>FT</th>
+                  <th style={{ textAlign:'left', padding:'6px 12px', color:t.tableTextVeryMuted, fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>Player</th>
+                  {STAT_COLS.map(c => <th key={c.key} style={{ textAlign:'center', padding:'6px 6px', color:t.tableTextVeryMuted, fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>{c.label}</th>)}
+                  <th style={{ textAlign:'center', padding:'6px 6px', color:t.tableTextVeryMuted, fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>FG</th>
+                  <th style={{ textAlign:'center', padding:'6px 6px', color:t.tableTextVeryMuted, fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>3PT</th>
+                  <th style={{ textAlign:'center', padding:'6px 6px', color:t.tableTextVeryMuted, fontFamily:BC, fontSize:9, letterSpacing:1, textTransform:'uppercase', fontWeight:700 }}>FT</th>
                 </tr>
               </thead>
               <tbody>
                 {gRows.map(r => r.dnp ? (
-                  <tr key={r.id} style={{ borderTop:'1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding:'6px 12px', color:'#475569', whiteSpace:'nowrap' }}>{r.player_name}</td>
-                    <td colSpan={STAT_COLS.length + 3} style={{ padding:'6px 6px', textAlign:'center', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase' }}>DNP</td>
+                  <tr key={r.id} style={{ borderTop:`1px solid ${t.tableLine}` }}>
+                    <td style={{ padding:'6px 12px', color:t.tableTextSubtle, whiteSpace:'nowrap' }}>{r.player_name}</td>
+                    <td colSpan={STAT_COLS.length + 3} style={{ padding:'6px 6px', textAlign:'center', color:t.tableTextSubtle, fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase' }}>DNP</td>
                   </tr>
                 ) : (
-                  <tr key={r.id} style={{ borderTop:'1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding:'6px 12px', color:'#cbd5e1', whiteSpace:'nowrap' }}>{r.player_name}</td>
+                  <tr key={r.id} style={{ borderTop:`1px solid ${t.tableLine}` }}>
+                    <td style={{ padding:'6px 12px', color:t.tableText, whiteSpace:'nowrap' }}>{r.player_name}</td>
                     {STAT_COLS.map(c => (
-                      <td key={c.key} style={{ padding:'6px 6px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{r[c.key] ?? 0}</td>
+                      <td key={c.key} style={{ padding:'6px 6px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{r[c.key] ?? 0}</td>
                     ))}
-                    <td style={{ padding:'6px 6px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{r.fgm}-{r.fga}</td>
-                    <td style={{ padding:'6px 6px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{r.three_pm}-{r.three_pa}</td>
-                    <td style={{ padding:'6px 6px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{r.ftm}-{r.fta}</td>
+                    <td style={{ padding:'6px 6px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{r.fgm}-{r.fga}</td>
+                    <td style={{ padding:'6px 6px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{r.three_pm}-{r.three_pa}</td>
+                    <td style={{ padding:'6px 6px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{r.ftm}-{r.fta}</td>
                   </tr>
                 ))}
               </tbody>

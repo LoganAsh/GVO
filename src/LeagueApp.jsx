@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 import DraftPicksTable from "./DraftPicksTable";
 import TeamStatsTable from "./TeamStatsTable";
+import { getTheme } from "./theme";
 
 const T = {"sat":154647000,"lux":187900000,"a1":195900000,"a2":207800000};
 
@@ -65,36 +66,40 @@ function CapRow({ capSpace }) {
   );
 }
 
-function RosterTable({ players, seasonLabels = [] }) {
+function RosterTable({ players, seasonLabels = [], th }) {
+  const t = th || getTheme("dark");
   if (!players || !players.length) return (
-    <div style={{padding:48,textAlign:"center",color:"#475569"}}>
+    <div style={{padding:48,textAlign:"center",color:t.tableTextSubtle}}>
       <div style={{fontSize:28,marginBottom:8}}>📋</div>
       <div style={{fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:2,fontSize:13}}>NO ROSTER DATA</div>
     </div>
   );
   const maxSal = Math.max(...players.map(p => p[3].filter(v=>v>0).length), 1);
+  const dimText = t.tableTextVeryMuted;
+  const greyHold = t.tableTextSubtle;
+  const dashColor = t.tableTextVeryMuted;
   return (
-    <div style={{overflowX:"auto"}}>
+    <div style={{overflowX:"auto",background:t.tableBg}}>
       <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
         <thead>
-          <tr style={{borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
+          <tr style={{borderBottom:`1px solid ${t.tableLine}`,background:t.tableHeaderBg}}>
             {["#","Player","Pos","OVR",...Array.from({length:maxSal},(_,i)=>i===0?"Current":(seasonLabels[i]||`Yr ${i+1}`))].map(h=>(
-              <th key={h} style={{textAlign:h==="Player"?"left":"center",padding:"9px 12px",color:"#475569",fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:2,textTransform:"uppercase",fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>
+              <th key={h} style={{textAlign:h==="Player"?"left":"center",padding:"9px 12px",color:t.tableTextSubtle,fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:2,textTransform:"uppercase",fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>
             ))}
           </tr>
         </thead>
         <tbody>
           {players.map(([name,pos,ovr,sals,opt,labels],i)=>(
-            <tr key={i} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",transition:"background 0.12s"}}
-              onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.04)"}
+            <tr key={i} style={{borderBottom:`1px solid ${t.tableLine}`,transition:"background 0.12s"}}
+              onMouseEnter={e=>e.currentTarget.style.background=t.tableRowHover}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-              <td style={{padding:"10px 12px",color:"#334155",fontSize:11,fontWeight:700,textAlign:"center"}}>{i+1}</td>
-              <td style={{padding:"10px 12px",color:"#f1f5f9",fontWeight:600,whiteSpace:"nowrap"}}>{name}</td>
+              <td style={{padding:"10px 12px",color:dimText,fontSize:11,fontWeight:700,textAlign:"center"}}>{i+1}</td>
+              <td style={{padding:"10px 12px",color:t.tableText,fontWeight:600,whiteSpace:"nowrap"}}>{name}</td>
               <td style={{padding:"10px 12px",textAlign:"center"}}>
-                {pos?<span style={{background:"rgba(99,102,241,0.15)",color:"#818cf8",borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700}}>{pos}</span>:<span style={{color:"#2d3748"}}>—</span>}
+                {pos?<span style={{background:"rgba(99,102,241,0.15)",color:"#818cf8",borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700}}>{pos}</span>:<span style={{color:dashColor}}>—</span>}
               </td>
               <td style={{padding:"10px 12px",textAlign:"center"}}>
-                {ovr?<span style={{background:ovrBg(ovr),color:ovrColor(ovr),borderRadius:5,padding:"3px 8px",fontSize:12,fontWeight:800,fontVariantNumeric:"tabular-nums",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{ovr}</span>:<span style={{color:"#2d3748"}}>—</span>}
+                {ovr?<span style={{background:ovrBg(ovr),color:ovrColor(ovr),borderRadius:5,padding:"3px 8px",fontSize:12,fontWeight:800,fontVariantNumeric:"tabular-nums",fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{ovr}</span>:<span style={{color:dashColor}}>—</span>}
               </td>
               {Array.from({length:maxSal},(_,yi)=>{
                 const v = sals[yi]||0;
@@ -106,18 +111,18 @@ function RosterTable({ players, seasonLabels = [] }) {
                 const isFinalYear = v>0 && yi===finalIdx;
                 const OPT_CLR = {TO:"#a78bfa",PO:"#34d399",NG:"#2dd4bf","2TO":"#a78bfa"};
                 const is2TOYear = opt==="2TO" && v>0 && nonZero.length>1 && (yi===finalIdx || yi===nonZero[nonZero.length-3]);
-                const salColor = !v?"#1e293b":isCapHold?"#334155":(is2TOYear||(isFinalYear&&opt&&OPT_CLR[opt]))?OPT_CLR[opt]:"#60a5fa";
+                const salColor = !v?dimText:isCapHold?greyHold:(is2TOYear||(isFinalYear&&opt&&OPT_CLR[opt]))?OPT_CLR[opt]:"#60a5fa";
                 const showOptionTag = opt==="2TO" ? is2TOYear : (isFinalYear && !!OPT_CLR[opt]);
                 const optionTagText = opt==="2TO" ? "TO" : opt;
                 return (
                   <td key={yi} style={{padding:"8px 12px",textAlign:"center",whiteSpace:"nowrap"}}>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
                       {label && !v ? (
-                        <span style={{color:"#334155",fontWeight:600,fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{label}</span>
+                        <span style={{color:greyHold,fontWeight:600,fontSize:12,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:0.5}}>{label}</span>
                       ) : (
                         <span style={{color:salColor,fontWeight:v?600:400,fontVariantNumeric:"tabular-nums",fontSize:13}}>{v?money(v):"—"}</span>
                       )}
-                      {isCapHold&&<span style={{color:"#334155",fontSize:9,fontWeight:700,letterSpacing:1,fontFamily:"'Barlow Condensed',sans-serif"}}>HOLD</span>}
+                      {isCapHold&&<span style={{color:greyHold,fontSize:9,fontWeight:700,letterSpacing:1,fontFamily:"'Barlow Condensed',sans-serif"}}>HOLD</span>}
                       {showOptionTag&&<span style={{color:salColor,fontSize:9,fontWeight:700,letterSpacing:1,fontFamily:"'Barlow Condensed',sans-serif"}}>{optionTagText}</span>}
                     </div>
                   </td>
@@ -178,42 +183,7 @@ export default function LeagueApp() {
     if (typeof window !== "undefined") window.localStorage.setItem("gvo-theme", theme);
   }, [theme]);
 
-  // Theme tokens. Light is the cream palette: #EDE8D0 (page bg), #C9C5B1
-  // (borders / secondary surfaces), #4F4D46 (primary text). Other values are
-  // derived rgba shades so subdued labels still have hierarchy.
-  const th = theme === "light" ? {
-    bg: "#EDE8D0",
-    bgGradient: "linear-gradient(160deg,#EDE8D0 0%,#D8D3BB 60%,#EDE8D0 100%)",
-    surface: "#EDE8D0",
-    surfaceAlt: "rgba(79,77,70,0.04)",
-    border: "#C9C5B1",
-    borderSoft: "rgba(79,77,70,0.12)",
-    text: "#4F4D46",
-    textMuted: "rgba(79,77,70,0.75)",
-    textSubtle: "rgba(79,77,70,0.55)",
-    textVeryMuted: "rgba(79,77,70,0.35)",
-    closeBtn: "rgba(79,77,70,0.55)",
-    rowHover: "rgba(79,77,70,0.06)",
-    inputBg: "rgba(79,77,70,0.05)",
-    headerBg: "rgba(79,77,70,0.04)",
-    backdrop: "rgba(79,77,70,0.45)",
-  } : {
-    bg: "#070b12",
-    bgGradient: "linear-gradient(160deg,#070b12 0%,#0d1525 60%,#070b12 100%)",
-    surface: "#0d1525",
-    surfaceAlt: "rgba(255,255,255,0.04)",
-    border: "rgba(255,255,255,0.08)",
-    borderSoft: "rgba(255,255,255,0.06)",
-    text: "#f1f5f9",
-    textMuted: "#94a3b8",
-    textSubtle: "#475569",
-    textVeryMuted: "#334155",
-    closeBtn: "#64748b",
-    rowHover: "rgba(255,255,255,0.04)",
-    inputBg: "rgba(255,255,255,0.06)",
-    headerBg: "rgba(0,0,0,0.3)",
-    backdrop: "rgba(0,0,0,0.65)",
-  };
+  const th = getTheme(theme);
   const drawerRef = useRef(null);
   const lastFocusRef = useRef(null);
 
@@ -533,23 +503,23 @@ export default function LeagueApp() {
             {info.cap!=null&&<CapRow capSpace={info.cap}/>}
 
             {/* Tab Switcher */}
-            <div style={{display:"flex",gap:3,marginBottom:16,background:"rgba(255,255,255,0.04)",borderRadius:9,padding:3,width:"fit-content"}}>
+            <div style={{display:"flex",gap:3,marginBottom:16,background:th.surfaceAlt,borderRadius:9,padding:3,width:"fit-content"}}>
               {[["roster","📋 Roster"],["picks","🎯 Picks"],["stats","📊 Stats"]].map(([t,l])=>(
-                <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:1,background:tab===t?"rgba(249,115,22,0.9)":"transparent",color:tab===t?"#fff":"#64748b"}}>
+                <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:1,background:tab===t?"rgba(249,115,22,0.9)":"transparent",color:tab===t?"#fff":th.textMuted}}>
                   {l}
                 </button>
               ))}
             </div>
 
             {/* Content */}
-            <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,overflow:"hidden"}}>
-              {tab==="roster"&&<RosterTable players={players} seasonLabels={seasonLabels}/>}
-              {tab==="picks"&&<DraftPicksTable teamAbbr={sel} />}
-              {tab==="stats"&&<TeamStatsTable teamAbbr={sel} />}
+            <div style={{background:th.tableBg,border:`1px solid ${th.border}`,borderRadius:12,overflow:"hidden"}}>
+              {tab==="roster"&&<RosterTable players={players} seasonLabels={seasonLabels} th={th}/>}
+              {tab==="picks"&&<DraftPicksTable teamAbbr={sel} theme={theme} />}
+              {tab==="stats"&&<TeamStatsTable teamAbbr={sel} theme={theme} />}
             </div>
           </div>
 
-          <div style={{borderTop:"1px solid rgba(255,255,255,0.04)",padding:"12px 20px",textAlign:"center",color:"#1e293b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase"}}>
+          <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"12px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase"}}>
             GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { getTheme } from './theme'
 
 const BC = "'Barlow Condensed', sans-serif"
 const B  = "'Barlow', sans-serif"
@@ -51,7 +52,8 @@ function PickTypeBadge({ type, direction }) {
   )
 }
 
-export default function DraftPicksTable({ teamAbbr }) {
+export default function DraftPicksTable({ teamAbbr, theme = "dark" }) {
+  const t = getTheme(theme)
   const [picks, setPicks]   = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -90,16 +92,16 @@ export default function DraftPicksTable({ teamAbbr }) {
   }
 
   if (loading) return (
-    <div style={{ padding: 40, textAlign: 'center', color: '#334155', fontFamily: BC, letterSpacing: 2, fontSize: 12 }}>
+    <div style={{ padding: 40, textAlign: 'center', color: t.tableTextVeryMuted, fontFamily: BC, letterSpacing: 2, fontSize: 12, background: t.tableBg }}>
       LOADING PICKS…
     </div>
   )
 
   if (!picks.length) return (
-    <div style={{ padding: 48, textAlign: 'center', color: '#475569' }}>
+    <div style={{ padding: 48, textAlign: 'center', color: t.tableTextSubtle, background: t.tableBg }}>
       <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
       <div style={{ fontFamily: BC, letterSpacing: 2, fontSize: 13 }}>NO PICKS ON FILE</div>
-      <div style={{ fontSize: 12, marginTop: 6, color: '#334155' }}>Add picks via the Admin Portal</div>
+      <div style={{ fontSize: 12, marginTop: 6, color: t.tableTextVeryMuted }}>Add picks via the Admin Portal</div>
     </div>
   )
 
@@ -111,15 +113,15 @@ export default function DraftPicksTable({ teamAbbr }) {
   }, {})
 
   return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ overflowX: 'auto', background: t.tableBg }}>
       {Object.entries(byYear).map(([year, yearPicks]) => (
         <div key={year}>
           {/* Year header */}
           <div style={{
-            padding: '8px 16px', background: 'rgba(255,255,255,0.03)',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            padding: '8px 16px', background: t.tableSectionBg,
+            borderBottom: `1px solid ${t.tableLine}`,
             fontFamily: BC, fontWeight: 900, fontSize: 11,
-            letterSpacing: 3, color: '#475569', textTransform: 'uppercase'
+            letterSpacing: 3, color: t.tableTextSubtle, textTransform: 'uppercase'
           }}>{year}</div>
 
           {yearPicks.map(pick => {
@@ -131,25 +133,25 @@ export default function DraftPicksTable({ teamAbbr }) {
               <div key={pick.id} style={{
                 display: 'flex', alignItems: 'flex-start', gap: 12,
                 padding: '12px 16px',
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
-                background: isOwner ? 'rgba(96,165,250,0.03)' : isOriginal ? 'rgba(248,113,113,0.03)' : 'transparent',
+                borderBottom: `1px solid ${t.tableLine}`,
+                background: isOwner ? 'rgba(96,165,250,0.06)' : isOriginal ? 'rgba(248,113,113,0.06)' : 'transparent',
                 transition: 'background 0.12s',
               }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-                onMouseLeave={e => e.currentTarget.style.background = isOwner ? 'rgba(96,165,250,0.03)' : isOriginal ? 'rgba(248,113,113,0.03)' : 'transparent'}
+                onMouseEnter={e => e.currentTarget.style.background = t.tableRowHover}
+                onMouseLeave={e => e.currentTarget.style.background = isOwner ? 'rgba(96,165,250,0.06)' : isOriginal ? 'rgba(248,113,113,0.06)' : 'transparent'}
               >
                 {/* Round badge */}
                 <div style={{
                   width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                  background: pick.round === 1 ? 'rgba(251,191,36,0.12)' : 'rgba(148,163,184,0.08)',
+                  background: pick.round === 1 ? 'rgba(251,191,36,0.18)' : 'rgba(148,163,184,0.18)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontFamily: BC, fontWeight: 900, fontSize: 13,
-                  color: pick.round === 1 ? '#fbbf24' : '#64748b'
+                  color: pick.round === 1 ? '#a87f00' : t.tableTextMuted
                 }}>R{pick.round}</div>
 
                 {/* Main content */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  {/* Row 1: type badge + ownership header (hidden when the original team is already a participant in the swap) */}
+                  {/* Row 1: type badge + ownership header */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <PickTypeBadge type={pick.pick_type} direction={pick.swap_direction} />
                     {!(pick.pick_type !== 'own' && (pick.swap_teams || []).includes(pick.original_team)) && (() => {
@@ -159,11 +161,11 @@ export default function DraftPicksTable({ teamAbbr }) {
                           <TeamChip abbr={pick.original_team} />
                           {pick.original_team !== holder ? (
                             <>
-                              <span style={{ color: '#334155', fontSize: 11 }}>→</span>
+                              <span style={{ color: t.tableTextSubtle, fontSize: 11 }}>→</span>
                               <TeamChip abbr={holder} />
                             </>
                           ) : (
-                            <span style={{ color: '#475569', fontSize: 12, fontFamily: BC }}>own pick</span>
+                            <span style={{ color: t.tableTextSubtle, fontSize: 12, fontFamily: BC }}>own pick</span>
                           )}
                         </>
                       )
@@ -173,34 +175,34 @@ export default function DraftPicksTable({ teamAbbr }) {
                   {/* Row 2: swap detail */}
                   {pick.pick_type !== 'own' && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                      {(pick.swap_teams || []).map((t, i, arr) => (
-                        <span key={t} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <TeamChip abbr={t} />
-                          {i < arr.length - 1 && <span style={{ color: '#475569', fontSize: 11 }}>⇄</span>}
+                      {(pick.swap_teams || []).map((tm, i, arr) => (
+                        <span key={tm} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <TeamChip abbr={tm} />
+                          {i < arr.length - 1 && <span style={{ color: t.tableTextSubtle, fontSize: 11 }}>⇄</span>}
                         </span>
                       ))}
                       {pick.worst_team ? (
                         pick.pick_type === 'multi_swap' ? (
-                          <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
-                            · <span style={{ color: '#94a3b8' }}>{pick.owned_by}</span> best ·
-                            {' '}<span style={{ color: '#94a3b8' }}>{(pick.swap_teams||[]).filter(t => t !== pick.owned_by && t !== pick.worst_team).join(', ') || '—'}</span> 2nd ·
-                            {' '}<span style={{ color: '#94a3b8' }}>{pick.worst_team}</span> worst
+                          <span style={{ color: t.tableTextMuted, fontFamily: BC, fontSize: 11 }}>
+                            · <span style={{ color: t.tableText }}>{pick.owned_by}</span> best ·
+                            {' '}<span style={{ color: t.tableText }}>{(pick.swap_teams||[]).filter(tm => tm !== pick.owned_by && tm !== pick.worst_team).join(', ') || '—'}</span> 2nd ·
+                            {' '}<span style={{ color: t.tableText }}>{pick.worst_team}</span> worst
                           </span>
                         ) : (
-                          <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
-                            · <span style={{ color: '#94a3b8' }}>{pick.owned_by}</span> best ·
-                            {' '}<span style={{ color: '#94a3b8' }}>{pick.worst_team}</span> worst
+                          <span style={{ color: t.tableTextMuted, fontFamily: BC, fontSize: 11 }}>
+                            · <span style={{ color: t.tableText }}>{pick.owned_by}</span> best ·
+                            {' '}<span style={{ color: t.tableText }}>{pick.worst_team}</span> worst
                           </span>
                         )
                       ) : (
-                        <span style={{ color: '#64748b', fontFamily: BC, fontSize: 11 }}>
+                        <span style={{ color: t.tableTextMuted, fontFamily: BC, fontSize: 11 }}>
                           · {pick.owned_by} takes {pick.swap_direction === 'best' ? (pick.pick_type === 'swap' ? 'better' : 'best') : pick.swap_direction === 'second_best' ? '2nd best' : (pick.pick_type === 'swap' ? 'worse' : 'worst')}
                         </span>
                       )}
                     </div>
                   )}
 
-                  {/* Row 2: protection + notes */}
+                  {/* Row 3: protection + notes */}
                   {(pick.protection || pick.notes) && (
                     <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
                       {pick.protection && (
@@ -211,7 +213,7 @@ export default function DraftPicksTable({ teamAbbr }) {
                         }}>🔒 {pick.protection}</span>
                       )}
                       {pick.notes && (
-                        <span style={{ color: '#475569', fontSize: 12, fontFamily: B, lineHeight: 1.4 }}>{pick.notes}</span>
+                        <span style={{ color: t.tableTextSubtle, fontSize: 12, fontFamily: B, lineHeight: 1.4 }}>{pick.notes}</span>
                       )}
                     </div>
                   )}
