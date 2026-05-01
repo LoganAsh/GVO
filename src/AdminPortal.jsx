@@ -420,10 +420,53 @@ function normalizeName(raw) {
   return { first: parts[0], last: parts[parts.length - 1] }
 }
 
+// Static aliases applied BEFORE the regular matcher. Keyed by the normalized
+// form ("a hukoporti" / "hukoporti"); value is the canonical roster name.
+// Useful for misspellings in box-score screenshots.
+const NAME_ALIASES_RAW = {
+  // Ariel Hukporti — common typo "Hukoporti" with extra 'o'.
+  'A. Hukoporti': 'Ariel Hukporti',
+  'A Hukoporti':  'Ariel Hukporti',
+  'Hukoporti':    'Ariel Hukporti',
+}
+const NAME_ALIASES = (() => {
+  const out = {}
+  for (const [k, v] of Object.entries(NAME_ALIASES_RAW)) {
+    const n = normalizeName(k)
+    if (!n) continue
+    const key = n.first ? `${n.first} ${n.last}` : n.last
+    out[key] = v
+  }
+  return out
+})()
+
+function applyNameAlias(raw) {
+  const n = normalizeName(raw)
+  if (!n) return raw
+  const key = n.first ? `${n.first} ${n.last}` : n.last
+  return NAME_ALIASES[key] || raw
+}
+
+// Stat-based disambiguation. When a team's roster has multiple players whose
+// name normalizes the same way (e.g. Pacers' Amen + Ausar Thompson both =>
+// "a thompson"), the basic matcher can't choose one. These rules sort the
+// matching parsed rows and assign them to the listed candidates in order.
+const DISAMBIG_RULES = [
+  // Indiana Pacers: A. Thompson — more minutes => Amen, fewer => Ausar.
+  {
+    team: 'IND',
+    typed: 'A. Thompson',
+    candidates: ['Amen Thompson', 'Ausar Thompson'],
+    sortBy: (a, b) => (Number(b.min) || 0) - (Number(a.min) || 0),
+  },
+]
+
 // Match a free-typed name against a list of roster {id, name} entries.
 // Returns the matched id when there is exactly one unambiguous match, else null.
 function matchRosterId(typed, roster) {
-  const t = normalizeName(typed)
+  // Resolve known aliases first so a misspelled image cell still finds its row.
+  const aliased = applyNameAlias(typed)
+  const t = normalizeName(aliased)
   if (!t) return null
   const candidates = (roster || []).map(p => ({ id: p.id, name: p.name, n: normalizeName(p.name) })).filter(p => p.n)
   // 1) exact full-name match
@@ -639,7 +682,10 @@ function StatsTab() {
       const existing = (prev[team] || []).slice()
       const teamRoster = rosterByTeam[team] || []
       for (const p of parsedRows) {
-        const pn = normalizeName(p.player_name)
+        // Resolve known aliases (e.g. "A. Hukoporti" -> "Ariel Hukporti") so
+        // typo names from screenshots merge into the right roster row.
+        const canonicalName = applyNameAlias(p.player_name)
+        const pn = normalizeName(canonicalName)
         let idx = -1
         if (pn) idx = existing.findIndex(r => {
           const rn = normalizeName(r.player_name)
@@ -653,12 +699,39 @@ function StatsTab() {
         const cells = {}
         for (const c of STAT_COLS) cells[c.key] = Number(p[c.key]) || 0
         if (idx >= 0) {
-          existing[idx] = { ...existing[idx], ...cells, player_name: existing[idx].player_name || p.player_name, dnp: false }
+          existing[idx] = { ...existing[idx], ...cells, player_name: existing[idx].player_name || canonicalName, dnp: false }
         } else {
-          const matchedId = matchRosterId(p.player_name, teamRoster)
-          existing.push({ player_id: matchedId, player_name: p.player_name, dnp: false, ...cells })
+          const matchedId = matchRosterId(canonicalName, teamRoster)
+          existing.push({ player_id: matchedId, player_name: canonicalName, dnp: false, ...cells })
         }
       }
+
+      // Stat-based disambiguation pass. When the parsed rows contain N copies
+      // of an ambiguous name (e.g. two "A. Thompson" lines on Indiana) and the
+      // team roster has matching candidates, sort and assign per the rule.
+      for (const rule of DISAMBIG_RULES) {
+        if (rule.team !== team) continue
+        const rn = normalizeName(rule.typed)
+        if (!rn) continue
+        const matchIdxs = []
+        for (let i = 0; i < existing.length; i++) {
+          const en = normalizeName(existing[i].player_name)
+          if (!en) continue
+          const a = (en.first || '')[0] || ''
+          const b = (rn.first || '')[0] || ''
+          if (en.last === rn.last && (!a || !b || a === b)) matchIdxs.push(i)
+        }
+        if (matchIdxs.length < 2) continue
+        const sorted = [...matchIdxs].sort((ai, bi) => rule.sortBy(existing[ai], existing[bi]))
+        const candidates = rule.candidates
+          .map(name => teamRoster.find(p => p.name === name))
+          .filter(Boolean)
+        for (let i = 0; i < Math.min(sorted.length, candidates.length); i++) {
+          const idx = sorted[i]
+          existing[idx] = { ...existing[idx], player_id: candidates[i].id, player_name: candidates[i].name }
+        }
+      }
+
       return { ...prev, [team]: existing }
     })
   }
