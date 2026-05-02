@@ -182,8 +182,6 @@ export default function DraftPage({ theme = 'dark' }) {
                   ['Pos', 'center'],
                   ['School', 'left'],
                   ['Ht', 'center'],
-                  ['Wt', 'center'],
-                  ['Age', 'center'],
                 ].map(([h, al]) => (
                   <th key={h} style={{ textAlign:al, padding:'8px 12px', color:t.tableTextSubtle, fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase', fontWeight:700, whiteSpace:'nowrap' }}>{h}</th>
                 ))}
@@ -191,7 +189,7 @@ export default function DraftPage({ theme = 'dark' }) {
             </thead>
             <tbody>
               {availableProspects.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding:'28px', textAlign:'center', color:t.tableTextSubtle, fontFamily:BC, letterSpacing:2, fontSize:11 }}>NO PROSPECTS LOADED</td></tr>
+                <tr><td colSpan={5} style={{ padding:'28px', textAlign:'center', color:t.tableTextSubtle, fontFamily:BC, letterSpacing:2, fontSize:11 }}>NO PROSPECTS LOADED</td></tr>
               ) : visibleProspects.map(p => (
                 <tr key={p.id} style={{ borderBottom:`1px solid ${t.tableLine}` }}>
                   <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableText, fontFamily:BC, fontWeight:800, fontVariantNumeric:'tabular-nums' }}>{p.rank}</td>
@@ -199,8 +197,6 @@ export default function DraftPage({ theme = 'dark' }) {
                   <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableTextMuted, fontFamily:BC, fontSize:12, letterSpacing:1 }}>{p.position || '—'}</td>
                   <td style={{ padding:'9px 12px', color:t.tableTextMuted, fontFamily:B, fontSize:12 }}>{p.school || '—'}</td>
                   <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{p.height || '—'}</td>
-                  <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{p.weight || '—'}</td>
-                  <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{p.age || '—'}</td>
                 </tr>
               ))}
             </tbody>
