@@ -645,14 +645,14 @@ function DraftTab() {
         <div style={{ display:'flex', gap:12, alignItems:'center', flexWrap:'wrap', marginBottom:12 }}>
           <button onClick={syncProspects} disabled={syncingProspects}
             style={{ padding:'9px 20px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:1, cursor:syncingProspects?'wait':'pointer', opacity:syncingProspects?0.7:1, display:'inline-flex', alignItems:'center', gap:8 }}>
-            {syncingProspects ? <><HourglassIcon size={14}/> <span>Syncing…</span></> : <><SyncIcon size={14}/> <span>Sync from ESPN</span></>}
+            {syncingProspects ? <><HourglassIcon size={14}/> <span>Syncing…</span></> : <><SyncIcon size={14}/> <span>Sync from Tankathon</span></>}
           </button>
           <span style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#94a3b8' }}>
             {prospectCount} prospects · {prospectUpdated ? `updated ${new Date(prospectUpdated).toLocaleString()}` : 'never synced'}
           </span>
         </div>
         <div style={{ fontSize:11, color:'#475569', fontFamily:BC, letterSpacing:1 }}>
-          Pulls the latest list from espn.com/nba/draft/bestavailable. Replaces all rows.
+          Pulls the latest big board from tankathon.com. Replaces all rows.
         </div>
         {prospectStatus && (
           <div style={{ marginTop:12, background:'rgba(52,211,153,0.06)', border:'1px solid rgba(52,211,153,0.2)', borderRadius:8, padding:'9px 12px', color:'#34d399', fontFamily:BC, fontSize:12, letterSpacing:1 }}>
