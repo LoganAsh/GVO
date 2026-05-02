@@ -24,12 +24,24 @@ function fmtClock(seconds) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+function normalizeName(s) {
+  return (s || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\b(jr|sr|ii|iii|iv)\.?\b/g, '')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ').trim()
+}
+
+const PROSPECTS_PER_PAGE = 25
+
 export default function DraftPage({ theme = 'dark' }) {
   const t = getTheme(theme)
   const [picks, setPicks] = useState([])
+  const [prospects, setProspects] = useState([])
   const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState(Date.now())
+  const [prospectPage, setProspectPage] = useState(0)
 
   // tick every second so countdowns update
   useEffect(() => {
@@ -41,13 +53,15 @@ export default function DraftPage({ theme = 'dark' }) {
     let cancelled = false
     async function load() {
       setLoading(true)
-      const [picksRes, settingsRes] = await Promise.all([
+      const [picksRes, settingsRes, prospectsRes] = await Promise.all([
         supabase.from('draft_2026').select('*').order('pick_number'),
         supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('prospects').select('*').order('rank'),
       ])
       if (cancelled) return
       setPicks(picksRes.data || [])
       setSettings(settingsRes.data || null)
+      setProspects(prospectsRes.data || [])
       setLoading(false)
     }
     load()
@@ -60,6 +74,24 @@ export default function DraftPage({ theme = 'dark' }) {
   const countdown = useMemo(() => draftAt ? fmtCountdown(draftAt - now) : null, [draftAt, now])
 
   const onClockPick = useMemo(() => picks.find(p => !p.player_name || !p.player_name.trim()), [picks])
+
+  const takenNames = useMemo(() => {
+    const s = new Set()
+    for (const p of picks) {
+      if (p.player_name && p.player_name.trim()) s.add(normalizeName(p.player_name))
+    }
+    return s
+  }, [picks])
+
+  const availableProspects = useMemo(
+    () => prospects.filter(p => !takenNames.has(p.normalized_name || normalizeName(p.name))),
+    [prospects, takenNames]
+  )
+
+  const totalProspectPages = Math.max(1, Math.ceil(availableProspects.length / PROSPECTS_PER_PAGE))
+  const currentProspectPage = Math.min(prospectPage, totalProspectPages - 1)
+  const prospectStart = currentProspectPage * PROSPECTS_PER_PAGE
+  const visibleProspects = availableProspects.slice(prospectStart, prospectStart + PROSPECTS_PER_PAGE)
 
   const clockRemaining = useMemo(() => {
     if (!settings?.clock_running || !settings?.clock_started_at) return null
@@ -122,6 +154,58 @@ export default function DraftPage({ theme = 'dark' }) {
               <span style={{ fontFamily:BC, fontSize:9, letterSpacing:2, color:t.tableTextSubtle, textTransform:'uppercase', marginTop:4 }}>Pick Clock</span>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Best Available */}
+      <div style={{ background:t.tableBg, border:`1px solid ${t.border}`, borderRadius:12, overflow:'hidden' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 14px', background:t.tableSectionBg, borderBottom:`1px solid ${t.tableLine}`, gap:8, flexWrap:'wrap' }}>
+          <div style={{ fontFamily:BC, fontWeight:900, fontSize:11, letterSpacing:3, color:t.tableTextSubtle, textTransform:'uppercase' }}>
+            Best Available · {availableProspects.length}
+          </div>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+            <button onClick={()=>setProspectPage(p => Math.max(0, p-1))} disabled={currentProspectPage === 0}
+              style={{ padding:'4px 12px', borderRadius:6, border:`1px solid ${t.border}`, background:'transparent', color: currentProspectPage === 0 ? t.tableTextVeryMuted : t.tableText, fontFamily:BC, fontSize:11, letterSpacing:1, cursor: currentProspectPage === 0 ? 'default' : 'pointer' }}>← Prev 25</button>
+            <span style={{ fontFamily:BC, fontSize:11, color:t.tableTextSubtle, letterSpacing:1, fontVariantNumeric:'tabular-nums' }}>
+              {availableProspects.length === 0 ? '0' : `${prospectStart+1}–${Math.min(prospectStart+PROSPECTS_PER_PAGE, availableProspects.length)} of ${availableProspects.length}`}
+            </span>
+            <button onClick={()=>setProspectPage(p => Math.min(totalProspectPages-1, p+1))} disabled={currentProspectPage >= totalProspectPages-1}
+              style={{ padding:'4px 12px', borderRadius:6, border:`1px solid ${t.border}`, background:'transparent', color: currentProspectPage >= totalProspectPages-1 ? t.tableTextVeryMuted : t.tableText, fontFamily:BC, fontSize:11, letterSpacing:1, cursor: currentProspectPage >= totalProspectPages-1 ? 'default' : 'pointer' }}>Next 25 →</button>
+          </div>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+            <thead>
+              <tr style={{ borderBottom:`1px solid ${t.tableLine}`, background:t.tableHeaderBg }}>
+                {[
+                  ['Rank', 'center'],
+                  ['Player', 'left'],
+                  ['Pos', 'center'],
+                  ['School', 'left'],
+                  ['Ht', 'center'],
+                  ['Wt', 'center'],
+                  ['Age', 'center'],
+                ].map(([h, al]) => (
+                  <th key={h} style={{ textAlign:al, padding:'8px 12px', color:t.tableTextSubtle, fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase', fontWeight:700, whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {availableProspects.length === 0 ? (
+                <tr><td colSpan={7} style={{ padding:'28px', textAlign:'center', color:t.tableTextSubtle, fontFamily:BC, letterSpacing:2, fontSize:11 }}>NO PROSPECTS LOADED</td></tr>
+              ) : visibleProspects.map(p => (
+                <tr key={p.id} style={{ borderBottom:`1px solid ${t.tableLine}` }}>
+                  <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableText, fontFamily:BC, fontWeight:800, fontVariantNumeric:'tabular-nums' }}>{p.rank}</td>
+                  <td style={{ padding:'9px 12px', color:t.tableText, fontWeight:600, whiteSpace:'nowrap', fontFamily:B }}>{p.name}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableTextMuted, fontFamily:BC, fontSize:12, letterSpacing:1 }}>{p.position || '—'}</td>
+                  <td style={{ padding:'9px 12px', color:t.tableTextMuted, fontFamily:B, fontSize:12 }}>{p.school || '—'}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{p.height || '—'}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{p.weight || '—'}</td>
+                  <td style={{ padding:'9px 12px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{p.age || '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 

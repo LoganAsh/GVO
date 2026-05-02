@@ -10,6 +10,7 @@ const FULL  = {ATL:"Atlanta Hawks",BOS:"Boston Celtics",BKN:"Brooklyn Nets",CHA:
 const SYNC_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/sync-league-data'
 const PARSE_BOX_SCORE_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/parse-box-score'
 const DISCORD_SYNC_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/discord-sync'
+const SYNC_PROSPECTS_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/sync-prospects'
 
 const inputStyle  = { background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, padding:'9px 12px', color:'#f1f5f9', fontFamily:B, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }
 const labelStyle  = { fontFamily:BC, fontSize:10, letterSpacing:2, color:'#475569', textTransform:'uppercase', display:'block', marginBottom:5 }
@@ -491,6 +492,8 @@ const EMPTY_DRAFT_PICK = { pick_number: '', owns_team: 'ATL', original_team: 'AT
 function DraftTab() {
   const [picks, setPicks]                 = useState([])
   const [settings, setSettings]           = useState(null)
+  const [prospectCount, setProspectCount] = useState(0)
+  const [prospectUpdated, setProspectUpdated] = useState(null)
   const [loading, setLoading]             = useState(true)
   const [showForm, setShowForm]           = useState(false)
   const [editId, setEditId]               = useState(null)
@@ -501,17 +504,23 @@ function DraftTab() {
   const [draftAtLocal, setDraftAtLocal]   = useState('')
   const [savingClock, setSavingClock]     = useState(false)
   const [savingDate, setSavingDate]       = useState(false)
+  const [syncingProspects, setSyncingProspects] = useState(false)
+  const [prospectError, setProspectError] = useState(null)
+  const [prospectStatus, setProspectStatus] = useState(null)
 
   useEffect(() => { load() }, [])
 
   const load = async () => {
     setLoading(true)
-    const [picksRes, settingsRes] = await Promise.all([
+    const [picksRes, settingsRes, prospectsRes] = await Promise.all([
       supabase.from('draft_2026').select('*').order('pick_number'),
       supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
+      supabase.from('prospects').select('id, updated_at', { count: 'exact', head: false }).order('updated_at', { ascending: false }).limit(1),
     ])
     setPicks(picksRes.data || [])
     setSettings(settingsRes.data || null)
+    setProspectCount(prospectsRes.count || 0)
+    setProspectUpdated(prospectsRes.data?.[0]?.updated_at || null)
     if (settingsRes.data) {
       setClockMinutes(String(Math.round((settingsRes.data.clock_seconds || 600) / 60)))
       // Convert UTC ISO to a value the datetime-local input accepts (local TZ)
@@ -600,6 +609,27 @@ function DraftTab() {
     setSavingDate(false); load()
   }
 
+  const syncProspects = async () => {
+    setSyncingProspects(true); setProspectError(null); setProspectStatus(null)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      if (!token) throw new Error('No active admin session.')
+      const res = await fetch(SYNC_PROSPECTS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: '{}',
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+      setProspectStatus(`Synced ${json.count} prospects (${json.via})`)
+      load()
+    } catch (e) {
+      setProspectError(e.message || String(e))
+    }
+    setSyncingProspects(false)
+  }
+
   if (loading) return (
     <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><TargetIcon size={16}/> 2026 Draft</span>}>
       <div style={{ color:'#475569', fontFamily:BC, letterSpacing:2, fontSize:12, padding:24, textAlign:'center' }}>LOADING…</div>
@@ -608,6 +638,30 @@ function DraftTab() {
 
   return (
     <>
+      <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><BarChartIcon size={16}/> Best Available Prospects</span>}>
+        <div style={{ display:'flex', gap:12, alignItems:'center', flexWrap:'wrap', marginBottom:12 }}>
+          <button onClick={syncProspects} disabled={syncingProspects}
+            style={{ padding:'9px 20px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:1, cursor:syncingProspects?'wait':'pointer', opacity:syncingProspects?0.7:1, display:'inline-flex', alignItems:'center', gap:8 }}>
+            {syncingProspects ? <><HourglassIcon size={14}/> <span>Syncing…</span></> : <><SyncIcon size={14}/> <span>Sync from ESPN</span></>}
+          </button>
+          <span style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#94a3b8' }}>
+            {prospectCount} prospects · {prospectUpdated ? `updated ${new Date(prospectUpdated).toLocaleString()}` : 'never synced'}
+          </span>
+        </div>
+        <div style={{ fontSize:11, color:'#475569', fontFamily:BC, letterSpacing:1 }}>
+          Pulls the latest list from espn.com/nba/draft/bestavailable. Replaces all rows.
+        </div>
+        {prospectStatus && (
+          <div style={{ marginTop:12, background:'rgba(52,211,153,0.06)', border:'1px solid rgba(52,211,153,0.2)', borderRadius:8, padding:'9px 12px', color:'#34d399', fontFamily:BC, fontSize:12, letterSpacing:1 }}>
+            {prospectStatus}
+          </div>
+        )}
+        {prospectError && (
+          <div style={{ marginTop:12, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, padding:'9px 12px', color:'#fca5a5', fontFamily:B, fontSize:12 }}>
+            {prospectError}
+          </div>
+        )}
+      </Card>
       <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><HourglassIcon size={16}/> Draft Settings</span>}>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:18 }}>
           <div>
