@@ -16,7 +16,7 @@ const labelStyle  = { fontFamily:BC, fontSize:10, letterSpacing:2, color:'#47556
 
 function Card({ title, children }) {
   return (
-    <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:24, marginBottom:20 }}>
+    <div className="admin-card" style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:12, padding:24, marginBottom:20 }}>
       <div style={{ fontFamily:BC, fontWeight:800, fontSize:16, letterSpacing:1, color:'#f1f5f9', marginBottom:18, borderBottom:'1px solid rgba(255,255,255,0.06)', paddingBottom:12 }}>{title}</div>
       {children}
     </div>
@@ -1391,24 +1391,37 @@ export default function AdminPortal({ session, onLogout }) {
 
   return (
     <div style={{ minHeight:'100vh', background:'linear-gradient(160deg,#070b12 0%,#0d1525 60%,#070b12 100%)', color:'#f1f5f9', fontFamily:B }}>
-      <div style={{ background:'rgba(0,0,0,0.4)', borderBottom:'1px solid rgba(255,255,255,0.06)', padding:'14px 24px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          <div style={{ width:32, height:32, borderRadius:8, background:'linear-gradient(135deg,#f97316,#ef4444)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff' }}><BasketballIcon size={18}/></div>
-          <div>
+      <style>{`
+        @media (max-width: 640px) {
+          .admin-header { padding: 10px 14px !important; gap: 10px; flex-wrap: wrap; }
+          .admin-header-brand-text { display: none; }
+          .admin-header-actions a, .admin-header-actions button { padding: 6px 10px !important; font-size: 11px !important; }
+          .admin-main { padding: 16px 12px !important; }
+          .admin-tabs { flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; width: 100% !important; scrollbar-width: none; }
+          .admin-tabs::-webkit-scrollbar { display: none; }
+          .admin-tabs button { padding: 7px 12px !important; font-size: 11px !important; flex-shrink: 0; }
+          .admin-card { padding: 16px !important; }
+          .admin-card > div:first-child { font-size: 14px !important; margin-bottom: 12px !important; padding-bottom: 10px !important; }
+        }
+      `}</style>
+      <div className="admin-header" style={{ background:'rgba(0,0,0,0.4)', borderBottom:'1px solid rgba(255,255,255,0.06)', padding:'14px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:14 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, minWidth:0 }}>
+          <div style={{ width:32, height:32, borderRadius:8, background:'linear-gradient(135deg,#f97316,#ef4444)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', flexShrink:0 }}><BasketballIcon size={18}/></div>
+          <div style={{ minWidth:0 }}>
             <div style={{ fontFamily:BC, fontWeight:900, fontSize:15, letterSpacing:1 }}>ADMIN PORTAL</div>
-            <div style={{ fontFamily:BC, fontSize:9, letterSpacing:3, color:'#475569', textTransform:'uppercase' }}>{session.user.email}</div>
+            <div className="admin-header-brand-text" style={{ fontFamily:BC, fontSize:9, letterSpacing:3, color:'#475569', textTransform:'uppercase', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{session.user.email}</div>
           </div>
         </div>
-        <div style={{ display:'flex', gap:10 }}>
+        <div className="admin-header-actions" style={{ display:'flex', gap:8, flexShrink:0 }}>
           <a href="/" style={{ padding:'7px 14px', borderRadius:7, border:'1px solid rgba(255,255,255,0.1)', background:'rgba(255,255,255,0.05)', color:'#94a3b8', textDecoration:'none', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1 }}>← View Site</a>
           <button onClick={onLogout} style={{ padding:'7px 14px', borderRadius:7, border:'1px solid rgba(239,68,68,0.3)', background:'rgba(239,68,68,0.08)', color:'#f87171', cursor:'pointer', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1 }}>Sign Out</button>
         </div>
       </div>
 
-      <div style={{ maxWidth:900, margin:'0 auto', padding:'28px 20px' }}>
-        <div style={{ display:'flex', gap:3, background:'rgba(255,255,255,0.04)', borderRadius:9, padding:3, width:'fit-content', marginBottom:28 }}>
+      <div className="admin-main" style={{ maxWidth:900, margin:'0 auto', padding:'28px 20px' }}>
+        <div className="admin-tabs" style={{ display:'flex', gap:3, background:'rgba(255,255,255,0.04)', borderRadius:9, padding:3, width:'fit-content', marginBottom:28 }}>
           {TABS.map(([key, Icon, label])=>(
-            <button key={key} onClick={()=>setTab(key)} style={{ padding:'8px 18px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1, background:tab===key?'rgba(249,115,22,0.9)':'transparent', color:tab===key?'#fff':'#64748b', display:'inline-flex', alignItems:'center', gap:6 }}><Icon size={13}/><span>{label}</span></button>
+            <button key={key} onClick={()=>setTab(key)} style={{ padding:'8px 18px', borderRadius:7, border:'none', cursor:'pointer', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1, background:tab===key?'rgba(249,115,22,0.9)':'transparent', color:tab===key?'#fff':'#64748b', display:'inline-flex', alignItems:'center', gap:6, whiteSpace:'nowrap' }}><Icon size={13}/><span>{label}</span></button>
           ))}
         </div>
 
