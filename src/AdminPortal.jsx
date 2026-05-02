@@ -621,7 +621,10 @@ function DraftTab() {
         body: '{}',
       })
       const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+      if (!res.ok) {
+        const detail = json?.snippet ? `\n\n${String(json.snippet).slice(0, 1500)}` : ''
+        throw new Error(`${json?.error || `HTTP ${res.status}`}${detail}`)
+      }
       setProspectStatus(`Synced ${json.count} prospects (${json.via})`)
       load()
     } catch (e) {
@@ -657,9 +660,9 @@ function DraftTab() {
           </div>
         )}
         {prospectError && (
-          <div style={{ marginTop:12, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, padding:'9px 12px', color:'#fca5a5', fontFamily:B, fontSize:12 }}>
+          <pre style={{ marginTop:12, background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, padding:'10px 12px', color:'#fca5a5', fontFamily:'monospace', fontSize:11, lineHeight:1.45, whiteSpace:'pre-wrap', wordBreak:'break-all', maxHeight:320, overflow:'auto' }}>
             {prospectError}
-          </div>
+          </pre>
         )}
       </Card>
       <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><HourglassIcon size={16}/> Draft Settings</span>}>
