@@ -51,8 +51,8 @@ export default function DraftPage({ theme = 'dark' }) {
 
   useEffect(() => {
     let cancelled = false
-    async function load() {
-      setLoading(true)
+    async function load(initial) {
+      if (initial) setLoading(true)
       const [picksRes, settingsRes, prospectsRes] = await Promise.all([
         supabase.from('draft_2026').select('*').order('pick_number'),
         supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
@@ -62,11 +62,10 @@ export default function DraftPage({ theme = 'dark' }) {
       setPicks(picksRes.data || [])
       setSettings(settingsRes.data || null)
       setProspects(prospectsRes.data || [])
-      setLoading(false)
+      if (initial) setLoading(false)
     }
-    load()
-    // light polling so the public page picks up admin changes within a few seconds
-    const id = setInterval(load, 8000)
+    load(true)
+    const id = setInterval(() => load(false), 30000)
     return () => { cancelled = true; clearInterval(id) }
   }, [])
 
