@@ -483,6 +483,258 @@ function matchRosterId(typed, roster) {
   return null
 }
 
+// ── Draft Tab ─────────────────────────────────────────────────────────────────
+
+const POSITIONS = ['PG','SG','SF','PF','C','G','F','G/F','F/C']
+const EMPTY_DRAFT_PICK = { pick_number: '', owns_team: 'ATL', original_team: 'ATL', player_name: '', school: '', position: '', age: '' }
+
+function DraftTab() {
+  const [picks, setPicks]                 = useState([])
+  const [settings, setSettings]           = useState(null)
+  const [loading, setLoading]             = useState(true)
+  const [showForm, setShowForm]           = useState(false)
+  const [editId, setEditId]               = useState(null)
+  const [form, setForm]                   = useState(EMPTY_DRAFT_PICK)
+  const [saving, setSaving]               = useState(false)
+  const [saveError, setSaveError]         = useState(null)
+  const [clockMinutes, setClockMinutes]   = useState('10')
+  const [draftAtLocal, setDraftAtLocal]   = useState('')
+  const [savingClock, setSavingClock]     = useState(false)
+  const [savingDate, setSavingDate]       = useState(false)
+
+  useEffect(() => { load() }, [])
+
+  const load = async () => {
+    setLoading(true)
+    const [picksRes, settingsRes] = await Promise.all([
+      supabase.from('draft_2026').select('*').order('pick_number'),
+      supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
+    ])
+    setPicks(picksRes.data || [])
+    setSettings(settingsRes.data || null)
+    if (settingsRes.data) {
+      setClockMinutes(String(Math.round((settingsRes.data.clock_seconds || 600) / 60)))
+      // Convert UTC ISO to a value the datetime-local input accepts (local TZ)
+      const d = new Date(settingsRes.data.draft_at)
+      const pad = n => String(n).padStart(2, '0')
+      setDraftAtLocal(`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`)
+    }
+    setLoading(false)
+  }
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  const openNew = () => {
+    const next = picks.length ? Math.max(...picks.map(p => p.pick_number)) + 1 : 1
+    setForm({ ...EMPTY_DRAFT_PICK, pick_number: String(next) })
+    setEditId(null); setSaveError(null); setShowForm(true)
+  }
+  const openEdit = p => {
+    setForm({
+      pick_number: String(p.pick_number),
+      owns_team: p.owns_team || 'ATL',
+      original_team: p.original_team || 'ATL',
+      player_name: p.player_name || '',
+      school: p.school || '',
+      position: p.position || '',
+      age: p.age != null ? String(p.age) : '',
+    })
+    setEditId(p.id); setSaveError(null); setShowForm(true)
+  }
+
+  const handleSave = async () => {
+    setSaving(true); setSaveError(null)
+    const payload = {
+      pick_number: Number(form.pick_number),
+      owns_team: form.owns_team,
+      original_team: form.original_team,
+      player_name: form.player_name.trim() || null,
+      school: form.school.trim() || null,
+      position: form.position || null,
+      age: form.age ? Number(form.age) : null,
+    }
+    if (!payload.pick_number || isNaN(payload.pick_number)) {
+      setSaving(false); setSaveError('Pick # is required'); return
+    }
+    const { error } = editId
+      ? await supabase.from('draft_2026').update(payload).eq('id', editId)
+      : await supabase.from('draft_2026').insert(payload)
+    setSaving(false)
+    if (error) { setSaveError(error.message || String(error)); return }
+    setShowForm(false); load()
+  }
+
+  const handleDelete = async id => {
+    if (!window.confirm('Delete this pick?')) return
+    await supabase.from('draft_2026').delete().eq('id', id)
+    load()
+  }
+
+  const startClock = async () => {
+    setSavingClock(true)
+    const seconds = Math.max(1, Number(clockMinutes) || 0) * 60
+    await supabase.from('draft_settings').update({
+      clock_seconds: seconds,
+      clock_running: true,
+      clock_started_at: new Date().toISOString(),
+    }).eq('id', 1)
+    setSavingClock(false); load()
+  }
+  const stopClock = async () => {
+    setSavingClock(true)
+    await supabase.from('draft_settings').update({ clock_running: false }).eq('id', 1)
+    setSavingClock(false); load()
+  }
+  const saveClockLength = async () => {
+    setSavingClock(true)
+    const seconds = Math.max(1, Number(clockMinutes) || 0) * 60
+    await supabase.from('draft_settings').update({ clock_seconds: seconds }).eq('id', 1)
+    setSavingClock(false); load()
+  }
+  const saveDraftDate = async () => {
+    if (!draftAtLocal) return
+    setSavingDate(true)
+    // Treat input as local time → convert to ISO
+    const iso = new Date(draftAtLocal).toISOString()
+    await supabase.from('draft_settings').update({ draft_at: iso }).eq('id', 1)
+    setSavingDate(false); load()
+  }
+
+  if (loading) return (
+    <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><TargetIcon size={16}/> 2026 Draft</span>}>
+      <div style={{ color:'#475569', fontFamily:BC, letterSpacing:2, fontSize:12, padding:24, textAlign:'center' }}>LOADING…</div>
+    </Card>
+  )
+
+  return (
+    <>
+      <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><HourglassIcon size={16}/> Draft Settings</span>}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:18 }}>
+          <div>
+            <label style={labelStyle}>Draft Date / Time (local)</label>
+            <div style={{ display:'flex', gap:8 }}>
+              <input type="datetime-local" value={draftAtLocal} onChange={e=>setDraftAtLocal(e.target.value)} style={{ ...inputStyle, flex:1 }}/>
+              <button onClick={saveDraftDate} disabled={savingDate} style={{ padding:'8px 14px', borderRadius:7, border:'none', background:'rgba(52,211,153,0.15)', color:'#34d399', fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, cursor:savingDate?'wait':'pointer' }}>
+                {savingDate?'…':'SAVE'}
+              </button>
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Pick Clock Length (minutes)</label>
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <input type="number" min="1" value={clockMinutes} onChange={e=>setClockMinutes(e.target.value)} style={{ ...inputStyle, flex:1 }}/>
+              <button onClick={saveClockLength} disabled={savingClock} style={{ padding:'8px 14px', borderRadius:7, border:'none', background:'rgba(255,255,255,0.06)', color:'#94a3b8', fontFamily:BC, fontWeight:700, fontSize:11, letterSpacing:1, cursor:savingClock?'wait':'pointer' }}>
+                SAVE
+              </button>
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Pick Clock</label>
+            <div style={{ display:'flex', gap:8 }}>
+              {settings?.clock_running ? (
+                <button onClick={stopClock} disabled={savingClock} style={{ flex:1, padding:'9px 14px', borderRadius:7, border:'1px solid rgba(239,68,68,0.3)', background:'rgba(239,68,68,0.12)', color:'#f87171', fontFamily:BC, fontWeight:800, fontSize:12, letterSpacing:2, textTransform:'uppercase', cursor:savingClock?'wait':'pointer' }}>
+                  ■ Stop Clock
+                </button>
+              ) : (
+                <button onClick={startClock} disabled={savingClock} style={{ flex:1, padding:'9px 14px', borderRadius:7, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:2, textTransform:'uppercase', cursor:savingClock?'wait':'pointer' }}>
+                  ▶ Start Clock
+                </button>
+              )}
+            </div>
+            <div style={{ fontFamily:BC, fontSize:10, letterSpacing:1, color:'#475569', marginTop:6 }}>
+              {settings?.clock_running ? `Running since ${new Date(settings.clock_started_at).toLocaleTimeString()}` : 'Off (hidden on public Draft page)'}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><TargetIcon size={16}/> Draft Picks · {picks.length}</span>}>
+        <div style={{ marginBottom:16 }}>
+          <button onClick={openNew} style={{ padding:'8px 18px', borderRadius:7, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:1, cursor:'pointer' }}>+ Add Pick</button>
+        </div>
+
+        {showForm && (
+          <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:18, marginBottom:18 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12, marginBottom:14 }}>
+              <div>
+                <label style={labelStyle}>Pick #</label>
+                <input type="number" min="1" value={form.pick_number} onChange={e=>set('pick_number', e.target.value)} style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>Owns</label>
+                <select value={form.owns_team} onChange={e=>set('owns_team', e.target.value)} style={inputStyle}>
+                  {TEAMS.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Original</label>
+                <select value={form.original_team} onChange={e=>set('original_team', e.target.value)} style={inputStyle}>
+                  {TEAMS.map(t=><option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Player Name</label>
+                <input value={form.player_name} onChange={e=>set('player_name', e.target.value)} placeholder="Empty until picked" style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>School</label>
+                <input value={form.school} onChange={e=>set('school', e.target.value)} style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>Position</label>
+                <select value={form.position} onChange={e=>set('position', e.target.value)} style={inputStyle}>
+                  <option value="">—</option>
+                  {POSITIONS.map(p=><option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Age</label>
+                <input type="number" min="0" value={form.age} onChange={e=>set('age', e.target.value)} style={inputStyle}/>
+              </div>
+            </div>
+            {saveError && <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:7, padding:'9px 12px', color:'#f87171', fontSize:12, fontFamily:B, marginBottom:12 }}>{saveError}</div>}
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={handleSave} disabled={saving} style={{ padding:'8px 18px', borderRadius:7, border:'none', background:'rgba(52,211,153,0.15)', color:'#34d399', fontFamily:BC, fontWeight:800, fontSize:12, letterSpacing:1, cursor:saving?'wait':'pointer' }}>{saving?'SAVING…':editId?'UPDATE':'CREATE'}</button>
+              <button onClick={()=>setShowForm(false)} style={{ padding:'8px 18px', borderRadius:7, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1, cursor:'pointer' }}>CANCEL</button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+            <thead>
+              <tr style={{ borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
+                {['#','Owns','Original','Player','School','Pos','Age',''].map((h,i)=>(
+                  <th key={i} style={{ textAlign:i===3||i===4?'left':'center', padding:'8px 10px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase', fontWeight:700 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {picks.length === 0 ? (
+                <tr><td colSpan={8} style={{ padding:24, textAlign:'center', color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:11 }}>NO PICKS — CLICK + ADD PICK</td></tr>
+              ) : picks.map(p => (
+                <tr key={p.id} style={{ borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                  <td style={{ padding:'7px 10px', textAlign:'center', color:'#f1f5f9', fontFamily:BC, fontWeight:800, fontVariantNumeric:'tabular-nums' }}>{p.pick_number}</td>
+                  <td style={{ padding:'7px 10px', textAlign:'center', color:'#f1f5f9', fontFamily:BC, fontWeight:700 }}>{p.owns_team}</td>
+                  <td style={{ padding:'7px 10px', textAlign:'center', color:'#94a3b8', fontFamily:BC }}>{p.original_team}</td>
+                  <td style={{ padding:'7px 10px', color: p.player_name ? '#f1f5f9' : '#475569', fontStyle: p.player_name ? 'normal' : 'italic' }}>{p.player_name || '—'}</td>
+                  <td style={{ padding:'7px 10px', color:'#94a3b8' }}>{p.school || '—'}</td>
+                  <td style={{ padding:'7px 10px', textAlign:'center', color:'#94a3b8', fontFamily:BC }}>{p.position || '—'}</td>
+                  <td style={{ padding:'7px 10px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{p.age || '—'}</td>
+                  <td style={{ padding:'7px 10px', textAlign:'right', whiteSpace:'nowrap' }}>
+                    <button onClick={()=>openEdit(p)} style={{ marginRight:6, padding:'5px 10px', borderRadius:5, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontWeight:700, fontSize:10, letterSpacing:1, cursor:'pointer' }}>EDIT</button>
+                    <button onClick={()=>handleDelete(p.id)} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'#f87171', fontFamily:BC, fontWeight:700, fontSize:10, letterSpacing:1, cursor:'pointer' }}>DEL</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </>
+  )
+}
+
 function StatsTab() {
   const today = new Date().toISOString().slice(0, 10)
   const [gameDate, setGameDate]   = useState(today)
@@ -1132,6 +1384,7 @@ export default function AdminPortal({ session, onLogout }) {
     ['sync',   SyncIcon,      'Sync'],
     ['roster', ClipboardIcon, 'Options'],
     ['picks',  TargetIcon,    'Picks'],
+    ['draft',  HourglassIcon, 'Draft'],
     ['stats',  BarChartIcon,  'Stats'],
     ['gms',    PersonIcon,    'GMs'],
   ]
@@ -1226,6 +1479,9 @@ export default function AdminPortal({ session, onLogout }) {
 
         {/* Picks */}
         {tab==='picks' && <PicksTab />}
+
+        {/* Draft */}
+        {tab==='draft' && <DraftTab />}
 
         {/* Stats */}
         {tab==='stats' && <StatsTab />}
