@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { getTheme } from './theme'
+import { TeamLogo } from './teamLogos'
 
 const BC = "'Barlow Condensed', sans-serif"
 
@@ -87,7 +88,12 @@ export default function Leaderboard({ theme = 'dark' }) {
                 <tr key={i} style={{ borderBottom: i === card.rows.length-1 ? 'none' : `1px solid ${t.tableLine}` }}>
                   <td style={{ padding:'7px 10px', color:t.tableTextSubtle, fontFamily:BC, fontWeight:700, width:24 }}>{i+1}</td>
                   <td style={{ padding:'7px 10px', color:t.tableText, fontWeight:600, whiteSpace:'nowrap' }}>{p.player_name}</td>
-                  <td style={{ padding:'7px 10px', color:t.tableTextMuted, fontFamily:BC, fontSize:11 }}>{p.team_abbr}</td>
+                  <td style={{ padding:'7px 10px', color:t.tableTextMuted, fontFamily:BC, fontSize:11 }}>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                      <TeamLogo abbr={p.team_abbr} size={16}/>
+                      {p.team_abbr}
+                    </span>
+                  </td>
                   <td style={{ padding:'7px 10px', textAlign:'right', color:t.tableText, fontVariantNumeric:'tabular-nums', fontWeight:700 }}>{card.fmt(p._val)}</td>
                 </tr>
               ))}

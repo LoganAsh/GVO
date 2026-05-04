@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { getTheme } from './theme'
+import { TeamLogo } from './teamLogos'
 
 const BC = "'Barlow Condensed', sans-serif"
 
@@ -113,8 +114,11 @@ export default function Standings({ theme = 'dark', onTeamClick }) {
                 onMouseEnter={e=>{ if (onTeamClick) e.currentTarget.style.background = t.tableRowHover }}
                 onMouseLeave={e=>{ e.currentTarget.style.background = 'transparent' }}>
                 <td style={{ padding:'8px 10px', color:t.tableText, fontFamily:BC, fontWeight:700, whiteSpace:'nowrap' }}>
-                  <span style={{ color:t.tableTextSubtle, marginRight:6 }}>{i+1}.</span>
-                  {onTeamClick ? <span style={{ borderBottom:`1px dotted ${t.tableTextSubtle}` }}>{r.team}</span> : r.team}
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
+                    <span style={{ color:t.tableTextSubtle, minWidth:18 }}>{i+1}.</span>
+                    <TeamLogo abbr={r.team} size={20}/>
+                    {onTeamClick ? <span style={{ borderBottom:`1px dotted ${t.tableTextSubtle}` }}>{r.team}</span> : r.team}
+                  </span>
                 </td>
                 <td style={{ padding:'8px 10px', textAlign:'center', color:t.tableText, fontVariantNumeric:'tabular-nums' }}>{r.W}</td>
                 <td style={{ padding:'8px 10px', textAlign:'center', color:t.tableText, fontVariantNumeric:'tabular-nums' }}>{r.L}</td>

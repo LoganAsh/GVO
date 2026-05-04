@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from './supabase'
 import { getTheme } from './theme'
+import { TeamLogo } from './teamLogos'
 
 const BC = "'Barlow Condensed', sans-serif"
 
@@ -98,7 +99,12 @@ export default function LeagueStats({ theme = 'dark' }) {
   const cellValue = (p, key) => {
     switch (key) {
       case 'player_name': return p.player_name
-      case 'team_abbr':   return p.team_abbr
+      case 'team_abbr':   return (
+        <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+          <TeamLogo abbr={p.team_abbr} size={16}/>
+          {p.team_abbr}
+        </span>
+      )
       case 'GP':          return p.GP
       case 'min':         return fmt1(p.GP ? p.min / p.GP : null)
       case 'pts':         return fmt1(p.GP ? p.pts / p.GP : null)
