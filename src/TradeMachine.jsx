@@ -50,15 +50,41 @@ function pickLabel(p) {
 
 function PickRow({ pick, side, onToggle, theme }) {
   const t = getTheme(theme)
+  const sub = [pick.protection, pick.notes].filter(Boolean).join(' · ')
   return (
     <button onClick={() => onToggle(pick)} style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7,
+      display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderRadius: 7,
       background: side === 'sending' ? 'rgba(249,115,22,0.10)' : 'transparent',
       border: side === 'sending' ? '1px solid rgba(249,115,22,0.35)' : `1px solid ${t.border}`,
       cursor: 'pointer', textAlign: 'left', width: '100%',
     }}>
-      <span style={{ flex: 1, minWidth: 0, color: t.tableText, fontWeight: 600, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: BC, letterSpacing: 0.5 }}>
-        {pickLabel(pick)}
+      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <span style={{ color: t.tableText, fontWeight: 600, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: BC, letterSpacing: 0.5 }}>
+          {pickLabel(pick)}
+        </span>
+        {sub && (
+          <span style={{ color: t.tableTextSubtle, fontFamily: B, fontSize: 11, lineHeight: 1.3, whiteSpace: 'normal', wordBreak: 'break-word' }}>
+            {sub}
+          </span>
+        )}
+      </span>
+    </button>
+  )
+}
+
+function SectionHeader({ label, count, open, onClick, theme }) {
+  const t = getTheme(theme)
+  return (
+    <button onClick={onClick} style={{
+      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+      padding: 0, marginBottom: open ? 6 : 0, background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+    }}>
+      <span style={{ fontFamily: BC, fontSize: 10, letterSpacing: 2, color: t.tableTextSubtle, textTransform: 'uppercase', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <svg aria-hidden="true" width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: t.closeBtn, transition: 'transform 0.18s ease', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', flexShrink: 0 }}>
+          <path d="M3 1.5L7 5L3 8.5"/>
+        </svg>
+        {label}
+        {count != null && <span style={{ color: t.tableTextVeryMuted, fontWeight: 600 }}>({count})</span>}
       </span>
     </button>
   )
@@ -67,6 +93,8 @@ function PickRow({ pick, side, onToggle, theme }) {
 function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTeam, evaluation, picks, sendingPicks, incomingPicks, onTogglePick, theme }) {
   const t = getTheme(theme)
   const color = CLR[team] || '#475569'
+  const [openRoster, setOpenRoster] = useState(true)
+  const [openPicks, setOpenPicks] = useState(false)
   const currentPayroll = evaluation.currentPayroll
   const outgoingTotal = evaluation.outgoing
   const incomingTotal = evaluation.incoming
@@ -183,31 +211,31 @@ function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTe
 
       {/* Roster */}
       <div style={{ padding: '10px 14px', borderBottom: `1px solid ${t.tableLine}` }}>
-        <div style={{ fontFamily: BC, fontSize: 10, letterSpacing: 2, color: t.tableTextSubtle, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
-          Roster
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 320, overflowY: 'auto' }}>
-          {roster.length === 0 ? (
-            <div style={{ padding: 16, textAlign: 'center', color: t.tableTextSubtle, fontFamily: BC, fontSize: 12, letterSpacing: 1 }}>NO ROSTER</div>
-          ) : roster.map(p => (
-            <PlayerRow key={p.id} player={p} side={sentIds.has(p.id) ? 'sending' : 'idle'} onToggle={onToggle} theme={theme} />
-          ))}
-        </div>
+        <SectionHeader label="Roster" count={roster.length} open={openRoster} onClick={() => setOpenRoster(v => !v)} theme={theme} />
+        {openRoster && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 320, overflowY: 'auto' }}>
+            {roster.length === 0 ? (
+              <div style={{ padding: 16, textAlign: 'center', color: t.tableTextSubtle, fontFamily: BC, fontSize: 12, letterSpacing: 1 }}>NO ROSTER</div>
+            ) : roster.map(p => (
+              <PlayerRow key={p.id} player={p} side={sentIds.has(p.id) ? 'sending' : 'idle'} onToggle={onToggle} theme={theme} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Picks inventory */}
       <div style={{ padding: '10px 14px', flex: 1 }}>
-        <div style={{ fontFamily: BC, fontSize: 10, letterSpacing: 2, color: t.tableTextSubtle, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
-          Picks
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 240, overflowY: 'auto' }}>
-          {picks.length === 0 ? (
-            <div style={{ padding: 12, textAlign: 'center', color: t.tableTextSubtle, fontFamily: BC, fontSize: 11, letterSpacing: 1 }}>NO PICKS ON FILE</div>
-          ) : picks.map(p => {
-            const isSent = sendingPicks.find(x => x.id === p.id)
-            return <PickRow key={p.id} pick={p} side={isSent ? 'sending' : 'idle'} onToggle={onTogglePick} theme={theme} />
-          })}
-        </div>
+        <SectionHeader label="Picks" count={picks.length} open={openPicks} onClick={() => setOpenPicks(v => !v)} theme={theme} />
+        {openPicks && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 320, overflowY: 'auto' }}>
+            {picks.length === 0 ? (
+              <div style={{ padding: 12, textAlign: 'center', color: t.tableTextSubtle, fontFamily: BC, fontSize: 11, letterSpacing: 1 }}>NO PICKS ON FILE</div>
+            ) : picks.map(p => {
+              const isSent = sendingPicks.find(x => x.id === p.id)
+              return <PickRow key={p.id} pick={p} side={isSent ? 'sending' : 'idle'} onToggle={onTogglePick} theme={theme} />
+            })}
+          </div>
+        )}
       </div>
     </div>
   )
