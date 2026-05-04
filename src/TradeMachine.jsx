@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { getTheme } from './theme'
-import { capStatus, fmtMoney, payrollFromRoster } from './cap'
+import { capStatus, fmtMoney, payrollFromRoster, evaluateTradeLeg } from './cap'
 
 const BC = "'Barlow Condensed', sans-serif"
 const B  = "'Barlow', sans-serif"
@@ -40,17 +40,16 @@ function PlayerRow({ player, side, onToggle, theme }) {
   )
 }
 
-function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTeam, theme }) {
+function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTeam, evaluation, theme }) {
   const t = getTheme(theme)
   const color = CLR[team] || '#475569'
-  const currentPayroll = useMemo(() => payrollFromRoster(roster), [roster])
-  const outgoingTotal = useMemo(() => sending.reduce((s, p) => s + (p.salary_yr1 || 0), 0), [sending])
-  const incomingTotal = useMemo(() => incoming.reduce((s, p) => s + (p.salary_yr1 || 0), 0), [incoming])
-  const newPayroll = currentPayroll - outgoingTotal + incomingTotal
+  const currentPayroll = evaluation.currentPayroll
+  const outgoingTotal = evaluation.outgoing
+  const incomingTotal = evaluation.incoming
+  const newPayroll = evaluation.newPayroll
   const delta = newPayroll - currentPayroll
 
   const sentIds = new Set(sending.map(p => p.id))
-  const otherRosterIds = new Set(roster.map(p => p.id))
 
   return (
     <div style={{ background: t.tableBg, border: `1px solid ${t.border}`, borderRadius: 12, display: 'flex', flexDirection: 'column', minHeight: 420 }}>
@@ -86,6 +85,35 @@ function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTe
           </span>
         </div>
       </div>
+
+      {/* Legality breakdown */}
+      {(sending.length > 0 || incoming.length > 0) && (
+        <div style={{ padding: '10px 14px', borderBottom: `1px solid ${t.tableLine}`, background: evaluation.legal ? 'rgba(52,211,153,0.06)' : 'rgba(239,68,68,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: evaluation.issues.length ? 8 : 0 }}>
+            <span style={{ fontFamily: BC, fontSize: 10, letterSpacing: 2, color: t.tableTextSubtle, textTransform: 'uppercase', fontWeight: 800 }}>Legality</span>
+            <span style={{ fontFamily: BC, fontSize: 11, fontWeight: 800, letterSpacing: 1, color: evaluation.legal ? '#34d399' : '#f87171' }}>
+              {evaluation.legal ? '✓ LEGAL' : '✗ NOT LEGAL'}
+            </span>
+          </div>
+          {evaluation.issues.length > 0 && (
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {evaluation.issues.map((i, idx) => (
+                <li key={idx} style={{ color: i.level === 'error' ? '#fca5a5' : '#fde68a', fontFamily: B, fontSize: 12, lineHeight: 1.45, marginBottom: 2 }}>{i.msg}</li>
+              ))}
+            </ul>
+          )}
+          {evaluation.tpe > 0 && (
+            <div style={{ marginTop: 6, fontFamily: BC, fontSize: 11, letterSpacing: 1, color: '#a78bfa' }}>
+              Generates Trade Exception: <span style={{ fontWeight: 800 }}>{fmtMoney(evaluation.tpe)}</span>
+            </div>
+          )}
+          {evaluation.outgoing > 0 && (
+            <div style={{ marginTop: 6, fontFamily: BC, fontSize: 10, letterSpacing: 1, color: t.tableTextSubtle }}>
+              Max incoming for {fmtMoney(evaluation.outgoing)} outgoing: <span style={{ color: t.tableTextMuted, fontWeight: 700 }}>{fmtMoney(evaluation.maxIncoming)}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Sending column */}
       {sending.length > 0 && (
@@ -184,14 +212,50 @@ export default function TradeMachine({ theme = 'dark' }) {
     setSendingB(arr => arr.find(x => x.id === player.id) ? arr.filter(x => x.id !== player.id) : [...arr, player])
   }
 
+  const evalA = useMemo(() => evaluateTradeLeg({
+    currentPayroll: payrollFromRoster(rosterA),
+    outgoing: sendingA.reduce((s, p) => s + (p.salary_yr1 || 0), 0),
+    incoming: sendingB.reduce((s, p) => s + (p.salary_yr1 || 0), 0),
+    outgoingPlayers: sendingA,
+  }), [rosterA, sendingA, sendingB])
+
+  const evalB = useMemo(() => evaluateTradeLeg({
+    currentPayroll: payrollFromRoster(rosterB),
+    outgoing: sendingB.reduce((s, p) => s + (p.salary_yr1 || 0), 0),
+    incoming: sendingA.reduce((s, p) => s + (p.salary_yr1 || 0), 0),
+    outgoingPlayers: sendingB,
+  }), [rosterB, sendingA, sendingB])
+
+  const tradeStarted = sendingA.length > 0 || sendingB.length > 0
+  const tradeLegal = evalA.legal && evalB.legal
+
   if (loading) return (
     <div style={{ padding: 40, textAlign: 'center', color: t.tableTextSubtle, fontFamily: BC, letterSpacing: 2, fontSize: 12 }}>LOADING ROSTERS…</div>
   )
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-      <TeamPanel team={teamA} setTeam={setTeamA} roster={rosterA} sending={sendingA} onToggle={toggleA} incoming={sendingB} otherTeam={teamB} theme={theme} />
-      <TeamPanel team={teamB} setTeam={setTeamB} roster={rosterB} sending={sendingB} onToggle={toggleB} incoming={sendingA} otherTeam={teamA} theme={theme} />
-    </div>
+    <>
+      {tradeStarted && (
+        <div style={{
+          marginBottom: 14,
+          padding: '12px 16px',
+          background: tradeLegal ? 'rgba(52,211,153,0.08)' : 'rgba(239,68,68,0.08)',
+          border: `1px solid ${tradeLegal ? 'rgba(52,211,153,0.35)' : 'rgba(239,68,68,0.35)'}`,
+          borderRadius: 10,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+        }}>
+          <span style={{ fontFamily: BC, fontWeight: 900, fontSize: 14, letterSpacing: 2, textTransform: 'uppercase', color: tradeLegal ? '#34d399' : '#f87171' }}>
+            {tradeLegal ? '✓ Trade is legal' : '✗ Trade is not legal'}
+          </span>
+          <span style={{ fontFamily: BC, fontSize: 11, color: t.tableTextSubtle, letterSpacing: 1 }}>
+            {teamA} sends {fmtMoney(evalA.outgoing)} · receives {fmtMoney(evalA.incoming)} · {teamB} sends {fmtMoney(evalB.outgoing)} · receives {fmtMoney(evalB.incoming)}
+          </span>
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        <TeamPanel team={teamA} setTeam={setTeamA} roster={rosterA} sending={sendingA} onToggle={toggleA} incoming={sendingB} otherTeam={teamB} evaluation={evalA} theme={theme} />
+        <TeamPanel team={teamB} setTeam={setTeamB} roster={rosterB} sending={sendingB} onToggle={toggleB} incoming={sendingA} otherTeam={teamA} evaluation={evalB} theme={theme} />
+      </div>
+    </>
   )
 }

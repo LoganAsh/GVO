@@ -46,3 +46,82 @@ export function fmtMoney(n) {
   if (a >= 1e3) return `${sign}$${(a/1e3).toFixed(0)}K`
   return `${sign}$${a}`
 }
+
+// Evaluate trade legality for one side of a 2-team deal. Returns the
+// arithmetic + a list of human-readable issues. `outgoingPlayers` is just
+// used to detect aggregation (more than one player in the outgoing leg)
+// for 2nd-apron teams.
+//
+// Rules captured (intentionally simplified for a sim league):
+//  - Above 2nd apron (before or after): can't take back more than sent;
+//    can't aggregate; can't end above 2nd apron.
+//  - Above 1st apron (before or after): must satisfy bracket matching;
+//    can't end above 1st apron (1st apron acts as hard cap for the team).
+//  - Over the cap, below 1st apron: must satisfy bracket matching.
+//  - Under the cap: legal as long as projected payroll stays at/under cap,
+//    OR they would also satisfy bracket matching as an over-cap team.
+export function evaluateTradeLeg({ currentPayroll, outgoing, incoming, outgoingPlayers = [] }) {
+  const before = capStatus(currentPayroll)
+  const newPayroll = currentPayroll - outgoing + incoming
+  const after = capStatus(newPayroll)
+  const issues = []
+
+  const aboveApron2 = before.key === 'apron2' || after.key === 'apron2'
+  const aboveApron1 = aboveApron2 || before.key === 'apron1' || after.key === 'apron1'
+  const overCap = before.key !== 'under'
+
+  const aggregating = outgoingPlayers.length > 1
+  const maxIncoming = maxIncomingForOutgoing(outgoing)
+  const excess = Math.max(0, incoming - maxIncoming)
+  const capRoom = Math.max(0, CAP.cap - currentPayroll)
+
+  if (aboveApron2) {
+    if (incoming > outgoing) {
+      issues.push({ level: 'error', msg: `Above 2nd apron — cannot take back more than sent (incoming ${fmtMoney(incoming)} > outgoing ${fmtMoney(outgoing)}).` })
+    }
+    if (aggregating) {
+      issues.push({ level: 'error', msg: `Above 2nd apron — cannot aggregate ${outgoingPlayers.length} outgoing players in a single trade.` })
+    }
+    if (after.key === 'apron2' && newPayroll > CAP.apron2) {
+      // capStatus returns apron2 only when ≥ apron2; flag if it would push higher
+      issues.push({ level: 'error', msg: `Trade pushes payroll above the 2nd apron hard cap (${fmtMoney(newPayroll)} > ${fmtMoney(CAP.apron2)}).` })
+    }
+  } else if (aboveApron1) {
+    if (incoming > maxIncoming) {
+      issues.push({ level: 'error', msg: `Doesn't satisfy salary matching: incoming ${fmtMoney(incoming)} exceeds max ${fmtMoney(maxIncoming)} for outgoing ${fmtMoney(outgoing)}.` })
+    }
+    if (newPayroll > CAP.apron1) {
+      issues.push({ level: 'error', msg: `Trade pushes payroll above the 1st apron hard cap (${fmtMoney(newPayroll)} > ${fmtMoney(CAP.apron1)}).` })
+    }
+  } else if (overCap) {
+    if (incoming > maxIncoming) {
+      issues.push({ level: 'error', msg: `Doesn't satisfy salary matching: incoming ${fmtMoney(incoming)} exceeds max ${fmtMoney(maxIncoming)} for outgoing ${fmtMoney(outgoing)}.` })
+    }
+  } else {
+    // Under cap: legal if either the projected payroll is at/under the cap
+    // (using cap room) OR bracket matching would have worked as an over-cap
+    // team (they can choose not to use room and operate over the cap).
+    const fitsRoom = newPayroll <= CAP.cap
+    const fitsMatch = incoming <= maxIncoming
+    if (!fitsRoom && !fitsMatch) {
+      issues.push({ level: 'error', msg: `Cap room (${fmtMoney(capRoom)}) and salary matching (max ${fmtMoney(maxIncoming)}) both fall short of incoming ${fmtMoney(incoming)}.` })
+    }
+  }
+
+  // Trade exception generated when sending out more salary than receiving
+  // (only meaningful for over-the-cap teams; a sub-cap team usually
+  // absorbs the difference into cap room instead).
+  const tpe = overCap && outgoing > incoming ? outgoing - incoming : 0
+
+  return {
+    before, after,
+    currentPayroll, newPayroll,
+    outgoing, incoming,
+    maxIncoming, excess,
+    capRoom,
+    aggregating, outgoingCount: outgoingPlayers.length,
+    tpe,
+    legal: issues.every(i => i.level !== 'error'),
+    issues,
+  }
+}
