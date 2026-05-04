@@ -435,6 +435,15 @@ export default function LeagueApp() {
             style={{display:"flex",alignItems:"center",justifyContent:"flex-start",gap:8,padding:"10px 14px",background:page==="trade_machine"?"rgba(249,115,22,0.12)":"none",borderLeft:page==="trade_machine"?"2px solid #f97316":"2px solid transparent",border:"none",borderBottom:`1px solid ${th.borderSoft}`,color:page==="trade_machine"?th.text:th.textMuted,cursor:"pointer",textAlign:"left",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
             <BarChartIcon size={13}/><span>Trade Machine</span>
           </button>
+          <a href="https://cbaguide.com/" target="_blank" rel="noopener noreferrer"
+            style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"10px 14px",background:"none",borderLeft:"2px solid transparent",border:"none",borderBottom:`1px solid ${th.borderSoft}`,color:th.textMuted,cursor:"pointer",textAlign:"left",textDecoration:"none",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
+            <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
+              <ClipboardIcon size={13}/><span>CBA Guide</span>
+            </span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:th.closeBtn,flexShrink:0}} aria-hidden="true">
+              <path d="M7 17 17 7"/><path d="M7 7h10v10"/>
+            </svg>
+          </a>
           <button onClick={()=>{setPage("draft");setSidebarOpen(false);}}
             style={{display:"flex",alignItems:"center",justifyContent:"flex-start",gap:8,padding:"10px 14px",background:page==="draft"?"rgba(249,115,22,0.12)":"none",borderLeft:page==="draft"?"2px solid #f97316":"2px solid transparent",border:"none",borderBottom:`1px solid ${th.borderSoft}`,color:page==="draft"?th.text:th.textMuted,cursor:"pointer",textAlign:"left",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
             <TargetIcon size={13}/><span>Draft</span>
