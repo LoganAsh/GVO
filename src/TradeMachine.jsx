@@ -40,7 +40,31 @@ function PlayerRow({ player, side, onToggle, theme }) {
   )
 }
 
-function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTeam, evaluation, theme }) {
+function pickLabel(p) {
+  const yr = p.year || p.pick_year || '?'
+  const rd = p.round ? `R${p.round}` : ''
+  const orig = p.original_team && p.original_team !== p.team_abbr ? ` via ${p.original_team}` : (p.from_team && p.from_team !== p.team_abbr ? ` via ${p.from_team}` : '')
+  const swap = p.pick_type === 'swap' || p.pick_type === 'multi_swap' ? ' (swap)' : ''
+  return `${yr} ${rd}${orig}${swap}`.trim()
+}
+
+function PickRow({ pick, side, onToggle, theme }) {
+  const t = getTheme(theme)
+  return (
+    <button onClick={() => onToggle(pick)} style={{
+      display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7,
+      background: side === 'sending' ? 'rgba(249,115,22,0.10)' : 'transparent',
+      border: side === 'sending' ? '1px solid rgba(249,115,22,0.35)' : `1px solid ${t.border}`,
+      cursor: 'pointer', textAlign: 'left', width: '100%',
+    }}>
+      <span style={{ flex: 1, minWidth: 0, color: t.tableText, fontWeight: 600, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: BC, letterSpacing: 0.5 }}>
+        {pickLabel(pick)}
+      </span>
+    </button>
+  )
+}
+
+function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTeam, evaluation, picks, sendingPicks, incomingPicks, onTogglePick, theme }) {
   const t = getTheme(theme)
   const color = CLR[team] || '#475569'
   const currentPayroll = evaluation.currentPayroll
@@ -116,26 +140,27 @@ function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTe
       )}
 
       {/* Sending column */}
-      {sending.length > 0 && (
+      {(sending.length > 0 || sendingPicks.length > 0) && (
         <div style={{ padding: '10px 14px', borderBottom: `1px solid ${t.tableLine}` }}>
           <div style={{ fontFamily: BC, fontSize: 10, letterSpacing: 2, color: '#f97316', textTransform: 'uppercase', marginBottom: 6, fontWeight: 800 }}>
-            Sending ({fmtMoney(outgoingTotal)})
+            Sending ({fmtMoney(outgoingTotal)}{sendingPicks.length ? ` · ${sendingPicks.length} pick${sendingPicks.length > 1 ? 's' : ''}` : ''})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {sending.map(p => <PlayerRow key={p.id} player={p} side="sending" onToggle={onToggle} theme={theme} />)}
+            {sending.map(p => <PlayerRow key={'p'+p.id} player={p} side="sending" onToggle={onToggle} theme={theme} />)}
+            {sendingPicks.map(p => <PickRow key={'pk'+p.id} pick={p} side="sending" onToggle={onTogglePick} theme={theme} />)}
           </div>
         </div>
       )}
 
       {/* Incoming column (from other team) */}
-      {incoming.length > 0 && (
+      {(incoming.length > 0 || incomingPicks.length > 0) && (
         <div style={{ padding: '10px 14px', borderBottom: `1px solid ${t.tableLine}`, background: 'rgba(52,211,153,0.05)' }}>
           <div style={{ fontFamily: BC, fontSize: 10, letterSpacing: 2, color: '#34d399', textTransform: 'uppercase', marginBottom: 6, fontWeight: 800 }}>
-            Receiving ({fmtMoney(incomingTotal)})
+            Receiving ({fmtMoney(incomingTotal)}{incomingPicks.length ? ` · ${incomingPicks.length} pick${incomingPicks.length > 1 ? 's' : ''}` : ''})
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {incoming.map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.35)' }}>
+              <div key={'p'+p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 7, background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.35)' }}>
                 <span style={{ flex: 1, minWidth: 0, color: t.tableText, fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: B }}>
                   {p.player_name}
                   {p.position && <span style={{ marginLeft: 6, fontFamily: BC, fontSize: 10, color: t.tableTextSubtle, letterSpacing: 1 }}>{p.position}</span>}
@@ -145,21 +170,43 @@ function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTe
                 </span>
               </div>
             ))}
+            {incomingPicks.map(p => (
+              <div key={'pk'+p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderRadius: 7, background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.35)' }}>
+                <span style={{ flex: 1, minWidth: 0, color: t.tableText, fontWeight: 600, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: BC, letterSpacing: 0.5 }}>
+                  {pickLabel(p)}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
       {/* Roster */}
-      <div style={{ padding: '10px 14px', flex: 1, overflowY: 'auto', maxHeight: 420 }}>
+      <div style={{ padding: '10px 14px', borderBottom: `1px solid ${t.tableLine}` }}>
         <div style={{ fontFamily: BC, fontSize: 10, letterSpacing: 2, color: t.tableTextSubtle, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
           Roster
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 320, overflowY: 'auto' }}>
           {roster.length === 0 ? (
             <div style={{ padding: 16, textAlign: 'center', color: t.tableTextSubtle, fontFamily: BC, fontSize: 12, letterSpacing: 1 }}>NO ROSTER</div>
           ) : roster.map(p => (
             <PlayerRow key={p.id} player={p} side={sentIds.has(p.id) ? 'sending' : 'idle'} onToggle={onToggle} theme={theme} />
           ))}
+        </div>
+      </div>
+
+      {/* Picks inventory */}
+      <div style={{ padding: '10px 14px', flex: 1 }}>
+        <div style={{ fontFamily: BC, fontSize: 10, letterSpacing: 2, color: t.tableTextSubtle, textTransform: 'uppercase', marginBottom: 6, fontWeight: 700 }}>
+          Picks
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 240, overflowY: 'auto' }}>
+          {picks.length === 0 ? (
+            <div style={{ padding: 12, textAlign: 'center', color: t.tableTextSubtle, fontFamily: BC, fontSize: 11, letterSpacing: 1 }}>NO PICKS ON FILE</div>
+          ) : picks.map(p => {
+            const isSent = sendingPicks.find(x => x.id === p.id)
+            return <PickRow key={p.id} pick={p} side={isSent ? 'sending' : 'idle'} onToggle={onTogglePick} theme={theme} />
+          })}
         </div>
       </div>
     </div>
@@ -171,27 +218,40 @@ export default function TradeMachine({ theme = 'dark' }) {
   const [teamA, setTeamA] = useState('LAL')
   const [teamB, setTeamB] = useState('BOS')
   const [rostersByTeam, setRostersByTeam] = useState({})
+  const [picksByTeam, setPicksByTeam] = useState({})
+  const [draftSettings, setDraftSettings] = useState(null)
   const [loading, setLoading] = useState(true)
-  // sendingA = players A is trading to B; sendingB = players B is trading to A
+  // sendingA = items A is trading to B; sendingB = items B is trading to A
   const [sendingA, setSendingA] = useState([])
   const [sendingB, setSendingB] = useState([])
+  const [sendingPicksA, setSendingPicksA] = useState([])
+  const [sendingPicksB, setSendingPicksB] = useState([])
 
   useEffect(() => {
     let cancelled = false
     async function load() {
       setLoading(true)
-      const { data } = await supabase
-        .from('roster')
-        .select('id,team_abbr,player_name,position,ovr,salary_yr1,option_type')
-        .order('id')
+      const [rosterRes, picksRes, settingsRes] = await Promise.all([
+        supabase.from('roster').select('id,team_abbr,player_name,position,ovr,salary_yr1,option_type').order('id'),
+        supabase.from('draft_picks').select('id,team_abbr,year,round,pick_type,owned_by,original_team,from_team,notes').order('year').order('round'),
+        supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
+      ])
       if (cancelled) return
-      const byTeam = {}
-      for (const row of data || []) {
+      const rosterByTeam = {}
+      for (const row of rosterRes.data || []) {
         if (!row.team_abbr || !row.player_name) continue
-        if (!byTeam[row.team_abbr]) byTeam[row.team_abbr] = []
-        byTeam[row.team_abbr].push(row)
+        if (!rosterByTeam[row.team_abbr]) rosterByTeam[row.team_abbr] = []
+        rosterByTeam[row.team_abbr].push(row)
       }
-      setRostersByTeam(byTeam)
+      setRostersByTeam(rosterByTeam)
+      const picksByTeam = {}
+      for (const row of picksRes.data || []) {
+        if (!row.team_abbr) continue
+        if (!picksByTeam[row.team_abbr]) picksByTeam[row.team_abbr] = []
+        picksByTeam[row.team_abbr].push(row)
+      }
+      setPicksByTeam(picksByTeam)
+      setDraftSettings(settingsRes.data || null)
       setLoading(false)
     }
     load()
@@ -199,11 +259,13 @@ export default function TradeMachine({ theme = 'dark' }) {
   }, [])
 
   // Reset sending whenever a team changes so we don't carry over stale ids.
-  useEffect(() => { setSendingA([]) }, [teamA])
-  useEffect(() => { setSendingB([]) }, [teamB])
+  useEffect(() => { setSendingA([]); setSendingPicksA([]) }, [teamA])
+  useEffect(() => { setSendingB([]); setSendingPicksB([]) }, [teamB])
 
   const rosterA = rostersByTeam[teamA] || []
   const rosterB = rostersByTeam[teamB] || []
+  const picksA = picksByTeam[teamA] || []
+  const picksB = picksByTeam[teamB] || []
 
   const toggleA = (player) => {
     setSendingA(arr => arr.find(x => x.id === player.id) ? arr.filter(x => x.id !== player.id) : [...arr, player])
@@ -211,22 +273,53 @@ export default function TradeMachine({ theme = 'dark' }) {
   const toggleB = (player) => {
     setSendingB(arr => arr.find(x => x.id === player.id) ? arr.filter(x => x.id !== player.id) : [...arr, player])
   }
+  const togglePickA = (pick) => {
+    setSendingPicksA(arr => arr.find(x => x.id === pick.id) ? arr.filter(x => x.id !== pick.id) : [...arr, pick])
+  }
+  const togglePickB = (pick) => {
+    setSendingPicksB(arr => arr.find(x => x.id === pick.id) ? arr.filter(x => x.id !== pick.id) : [...arr, pick])
+  }
+
+  // Next draft year derived from configured draft date.
+  const nextDraftYear = useMemo(() => {
+    if (draftSettings?.draft_at) {
+      const d = new Date(draftSettings.draft_at)
+      return d > new Date() ? d.getFullYear() : d.getFullYear() + 1
+    }
+    return new Date().getFullYear() + 1
+  }, [draftSettings])
+
+  // Project each team's pick inventory after the trade.
+  const picksAfterA = useMemo(() => {
+    const sentIds = new Set(sendingPicksA.map(p => p.id))
+    return [...picksA.filter(p => !sentIds.has(p.id)), ...sendingPicksB]
+  }, [picksA, sendingPicksA, sendingPicksB])
+  const picksAfterB = useMemo(() => {
+    const sentIds = new Set(sendingPicksB.map(p => p.id))
+    return [...picksB.filter(p => !sentIds.has(p.id)), ...sendingPicksA]
+  }, [picksB, sendingPicksA, sendingPicksB])
 
   const evalA = useMemo(() => evaluateTradeLeg({
     currentPayroll: payrollFromRoster(rosterA),
     outgoing: sendingA.reduce((s, p) => s + (p.salary_yr1 || 0), 0),
     incoming: sendingB.reduce((s, p) => s + (p.salary_yr1 || 0), 0),
     outgoingPlayers: sendingA,
-  }), [rosterA, sendingA, sendingB])
+    picksAfter: picksAfterA,
+    outgoingPicks: sendingPicksA,
+    nextDraftYear,
+  }), [rosterA, sendingA, sendingB, picksAfterA, sendingPicksA, nextDraftYear])
 
   const evalB = useMemo(() => evaluateTradeLeg({
     currentPayroll: payrollFromRoster(rosterB),
     outgoing: sendingB.reduce((s, p) => s + (p.salary_yr1 || 0), 0),
     incoming: sendingA.reduce((s, p) => s + (p.salary_yr1 || 0), 0),
     outgoingPlayers: sendingB,
-  }), [rosterB, sendingA, sendingB])
+    picksAfter: picksAfterB,
+    outgoingPicks: sendingPicksB,
+    nextDraftYear,
+  }), [rosterB, sendingA, sendingB, picksAfterB, sendingPicksB, nextDraftYear])
 
-  const tradeStarted = sendingA.length > 0 || sendingB.length > 0
+  const tradeStarted = sendingA.length > 0 || sendingB.length > 0 || sendingPicksA.length > 0 || sendingPicksB.length > 0
   const tradeLegal = evalA.legal && evalB.legal
 
   if (loading) return (
@@ -253,8 +346,10 @@ export default function TradeMachine({ theme = 'dark' }) {
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-        <TeamPanel team={teamA} setTeam={setTeamA} roster={rosterA} sending={sendingA} onToggle={toggleA} incoming={sendingB} otherTeam={teamB} evaluation={evalA} theme={theme} />
-        <TeamPanel team={teamB} setTeam={setTeamB} roster={rosterB} sending={sendingB} onToggle={toggleB} incoming={sendingA} otherTeam={teamA} evaluation={evalB} theme={theme} />
+        <TeamPanel team={teamA} setTeam={setTeamA} roster={rosterA} sending={sendingA} onToggle={toggleA} incoming={sendingB} otherTeam={teamB} evaluation={evalA}
+          picks={picksA} sendingPicks={sendingPicksA} incomingPicks={sendingPicksB} onTogglePick={togglePickA} theme={theme} />
+        <TeamPanel team={teamB} setTeam={setTeamB} roster={rosterB} sending={sendingB} onToggle={toggleB} incoming={sendingA} otherTeam={teamA} evaluation={evalB}
+          picks={picksB} sendingPicks={sendingPicksB} incomingPicks={sendingPicksA} onTogglePick={togglePickB} theme={theme} />
       </div>
     </>
   )

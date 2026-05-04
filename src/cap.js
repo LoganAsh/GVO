@@ -47,6 +47,42 @@ export function fmtMoney(n) {
   return `${sign}$${a}`
 }
 
+// Stepien rule: a team can never go two consecutive future drafts without
+// owning at least one 1st-round pick. Check the 7-year window starting at
+// `fromYear` and flag any consecutive pair of years where the team would
+// own zero 1st-rounders post-trade.
+//
+// Per-league interpretation (confirmed): owning ANY 1st-round pick in a
+// year (including a swap right) counts as owning a pick that year.
+export function validateStepien(picksAfter, fromYear) {
+  const ownedYears = new Set(
+    picksAfter
+      .filter(p => Number(p.round) === 1 && Number(p.year) >= fromYear && Number(p.year) <= fromYear + 6)
+      .map(p => Number(p.year))
+  )
+  const issues = []
+  for (let y = fromYear; y < fromYear + 6; y++) {
+    if (!ownedYears.has(y) && !ownedYears.has(y + 1)) {
+      issues.push({ level: 'error', msg: `Stepien rule: would have no 1st-round pick in both ${y} and ${y + 1}.` })
+    }
+  }
+  return issues
+}
+
+// Seven-year rule: picks more than 7 years out can't be traded. Check the
+// outgoing picks for any year past the 7-year horizon.
+export function validateSevenYear(outgoingPicks, fromYear) {
+  const issues = []
+  for (const p of outgoingPicks) {
+    const y = Number(p.year)
+    if (!y) continue
+    if (y > fromYear + 6) {
+      issues.push({ level: 'error', msg: `Seven-year rule: ${y} round ${p.round} pick is more than 7 years out (max ${fromYear + 6}).` })
+    }
+  }
+  return issues
+}
+
 // Evaluate trade legality for one side of a 2-team deal. Returns the
 // arithmetic + a list of human-readable issues. `outgoingPlayers` is just
 // used to detect aggregation (more than one player in the outgoing leg)
@@ -60,11 +96,17 @@ export function fmtMoney(n) {
 //  - Over the cap, below 1st apron: must satisfy bracket matching.
 //  - Under the cap: legal as long as projected payroll stays at/under cap,
 //    OR they would also satisfy bracket matching as an over-cap team.
-export function evaluateTradeLeg({ currentPayroll, outgoing, incoming, outgoingPlayers = [] }) {
+export function evaluateTradeLeg({ currentPayroll, outgoing, incoming, outgoingPlayers = [], picksAfter, outgoingPicks, nextDraftYear }) {
   const before = capStatus(currentPayroll)
   const newPayroll = currentPayroll - outgoing + incoming
   const after = capStatus(newPayroll)
   const issues = []
+  if (picksAfter && nextDraftYear) {
+    for (const i of validateStepien(picksAfter, nextDraftYear)) issues.push(i)
+  }
+  if (outgoingPicks && nextDraftYear) {
+    for (const i of validateSevenYear(outgoingPicks, nextDraftYear)) issues.push(i)
+  }
 
   const aboveApron2 = before.key === 'apron2' || after.key === 'apron2'
   const aboveApron1 = aboveApron2 || before.key === 'apron1' || after.key === 'apron1'
