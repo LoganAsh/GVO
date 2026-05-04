@@ -48,11 +48,20 @@ function ovrBg(ovr) {
   return "rgba(148,163,184,0.08)";
 }
 
+// Display name → real name used by 2kratings.com when the in-app name
+// doesn't match. Keep this in sync with the server-side aliases in the
+// sync-2k-ratings edge function.
+const PLAYER_NAME_ALIASES = {
+  'bones hyland': 'Nahshon Hyland',
+}
+
 // Build the 2KRatings.com URL for a player. Slug rules: lowercase, strip
 // accents, drop apostrophes, drop generational suffixes (Jr., II, …),
 // then collapse anything non-alphanumeric to hyphens.
 function ratings2kUrl(name) {
-  const slug = (name || '')
+  const aliasKey = (name || '').trim().toLowerCase()
+  const source = PLAYER_NAME_ALIASES[aliasKey] || name
+  const slug = (source || '')
     .toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/['']/g, '')
