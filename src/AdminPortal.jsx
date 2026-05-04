@@ -1590,7 +1590,7 @@ export default function AdminPortal({ session, onLogout }) {
                         <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
                           {sync2kStatus.failedSample.map((r,i)=>(
                             <div key={i} style={{ fontSize:11, fontFamily:BC, color:'#f87171', letterSpacing:0.5 }}>
-                              ✗ {r.team} · {r.name} · {r.reason || `HTTP ${r.status}`}
+                              ✗ {r.team} · {r.name} · {r.reason || `HTTP ${r.status}`}{r.tried?.length ? ` · tried: ${r.tried.join(', ')}` : ''}
                             </div>
                           ))}
                           {sync2kStatus.failed > sync2kStatus.failedSample.length && (
