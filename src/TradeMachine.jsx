@@ -90,6 +90,58 @@ function SectionHeader({ label, count, open, onClick, theme }) {
   )
 }
 
+function TradeSummary({ teamA, teamB, sendingA, sendingB, sendingPicksA, sendingPicksB, theme }) {
+  const t = getTheme(theme)
+  const empty = sendingA.length === 0 && sendingB.length === 0 && sendingPicksA.length === 0 && sendingPicksB.length === 0
+  if (empty) return null
+
+  const Side = ({ from, to, players, picks }) => {
+    const colorFrom = CLR[from] || '#475569'
+    const colorTo = CLR[to] || '#475569'
+    return (
+      <div style={{ background: t.surfaceAlt, border: `1px solid ${t.border}`, borderRadius: 10, padding: '12px 14px', flex: 1, minWidth: 260 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontFamily: BC, fontWeight: 800, fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' }}>
+          <span style={{ background: colorFrom, color: '#fff', padding: '2px 8px', borderRadius: 5 }}>{from}</span>
+          <span style={{ color: t.tableTextSubtle }}>sends to</span>
+          <span style={{ background: colorTo, color: '#fff', padding: '2px 8px', borderRadius: 5 }}>{to}</span>
+        </div>
+        {players.length === 0 && picks.length === 0 ? (
+          <div style={{ fontFamily: B, fontSize: 12, color: t.tableTextSubtle, fontStyle: 'italic' }}>Nothing</div>
+        ) : (
+          <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {players.map(p => (
+              <li key={'p'+p.id} style={{ color: t.tableText, fontFamily: B, fontSize: 13, lineHeight: 1.45 }}>
+                <span style={{ fontWeight: 600 }}>{p.player_name}</span>
+                {p.position && <span style={{ marginLeft: 6, fontFamily: BC, fontSize: 10, color: t.tableTextSubtle, letterSpacing: 1 }}>{p.position}</span>}
+                <span style={{ marginLeft: 8, color: t.tableTextMuted, fontFamily: BC, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(p.salary_yr1)}</span>
+              </li>
+            ))}
+            {picks.map(p => {
+              const sub = [p.protection, p.notes].filter(Boolean).join(' · ')
+              return (
+                <li key={'pk'+p.id} style={{ color: t.tableText, fontFamily: BC, fontSize: 13, lineHeight: 1.45, letterSpacing: 0.5 }}>
+                  {pickLabel(p)}
+                  {sub && <span style={{ marginLeft: 6, color: t.tableTextSubtle, fontFamily: B, fontSize: 11 }}>({sub})</span>}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ marginBottom: 14, background: t.tableBg, border: `1px solid ${t.border}`, borderRadius: 12, padding: 14 }}>
+      <div style={{ fontFamily: BC, fontWeight: 900, fontSize: 12, letterSpacing: 3, color: t.tableTextSubtle, textTransform: 'uppercase', marginBottom: 10 }}>Trade Summary</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        <Side from={teamA} to={teamB} players={sendingA} picks={sendingPicksA} />
+        <Side from={teamB} to={teamA} players={sendingB} picks={sendingPicksB} />
+      </div>
+    </div>
+  )
+}
+
 function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTeam, evaluation, picks, sendingPicks, incomingPicks, onTogglePick, theme }) {
   const t = getTheme(theme)
   const color = CLR[team] || '#475569'
@@ -227,13 +279,31 @@ function TeamPanel({ team, setTeam, roster, sending, onToggle, incoming, otherTe
       <div style={{ padding: '10px 14px', flex: 1 }}>
         <SectionHeader label="Picks" count={picks.length} open={openPicks} onClick={() => setOpenPicks(v => !v)} theme={theme} />
         {openPicks && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 320, overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 360, overflowY: 'auto' }}>
             {picks.length === 0 ? (
               <div style={{ padding: 12, textAlign: 'center', color: t.tableTextSubtle, fontFamily: BC, fontSize: 11, letterSpacing: 1 }}>NO PICKS ON FILE</div>
-            ) : picks.map(p => {
-              const isSent = sendingPicks.find(x => x.id === p.id)
-              return <PickRow key={p.id} pick={p} side={isSent ? 'sending' : 'idle'} onToggle={onTogglePick} theme={theme} />
-            })}
+            ) : (() => {
+              const byYear = {}
+              for (const p of picks) {
+                const y = p.year || p.pick_year || '—'
+                if (!byYear[y]) byYear[y] = []
+                byYear[y].push(p)
+              }
+              const years = Object.keys(byYear).sort((a, b) => Number(a) - Number(b))
+              return years.map(y => (
+                <div key={y}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, paddingBottom: 3, borderBottom: `1px solid ${t.tableLine}` }}>
+                    <span style={{ fontFamily: BC, fontWeight: 800, fontSize: 11, letterSpacing: 2, color: t.tableTextMuted }}>{y}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {byYear[y].map(p => {
+                      const isSent = sendingPicks.find(x => x.id === p.id)
+                      return <PickRow key={p.id} pick={p} side={isSent ? 'sending' : 'idle'} onToggle={onTogglePick} theme={theme} />
+                    })}
+                  </div>
+                </div>
+              ))
+            })()}
           </div>
         )}
       </div>
@@ -357,6 +427,7 @@ export default function TradeMachine({ theme = 'dark' }) {
 
   return (
     <>
+      <TradeSummary teamA={teamA} teamB={teamB} sendingA={sendingA} sendingB={sendingB} sendingPicksA={sendingPicksA} sendingPicksB={sendingPicksB} theme={theme} />
       {tradeStarted && (
         <div style={{
           marginBottom: 14,
