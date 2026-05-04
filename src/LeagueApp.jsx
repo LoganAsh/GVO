@@ -55,10 +55,13 @@ const PLAYER_NAME_ALIASES = {
   'bones hyland': 'Nahshon Hyland',
 }
 
-// Build the 2KRatings.com URL for a player. Slug rules: lowercase, strip
-// accents, drop apostrophes, drop generational suffixes (Jr., II, …),
-// then collapse anything non-alphanumeric to hyphens.
-function ratings2kUrl(name) {
+// Build the 2KRatings.com URL for a player. If `storedSlug` is provided
+// (recorded by the sync-2k-ratings edge function after a successful 200
+// response), use it directly — that's the slug the scraper resolved to,
+// covering all the anomalies (R.J. → rj, Bones → nahshon, etc.).
+// Otherwise generate one from the name as a best-effort fallback.
+function ratings2kUrl(name, storedSlug) {
+  if (storedSlug) return `https://www.2kratings.com/${storedSlug}`
   const aliasKey = (name || '').trim().toLowerCase()
   const source = PLAYER_NAME_ALIASES[aliasKey] || name
   const slug = (source || '')
@@ -127,14 +130,14 @@ function RosterTable({ players, seasonLabels = [], th }) {
           </tr>
         </thead>
         <tbody>
-          {players.map(([name,pos,ovr,sals,opt,labels],i)=>(
+          {players.map(([name,pos,ovr,sals,opt,labels,slug2k],i)=>(
             <tr key={i} style={{borderBottom:`1px solid ${t.tableLine}`,transition:"background 0.12s"}}
               onMouseEnter={e=>e.currentTarget.style.background=t.tableRowHover}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <td style={{padding:"10px 12px",color:dimText,fontSize:11,fontWeight:700,textAlign:"center"}}>{i+1}</td>
               <td style={{padding:"10px 12px",color:t.tableText,fontWeight:600,whiteSpace:"nowrap"}}>
-                {ratings2kUrl(name) ? (
-                  <a href={ratings2kUrl(name)} target="_blank" rel="noopener noreferrer"
+                {ratings2kUrl(name, slug2k) ? (
+                  <a href={ratings2kUrl(name, slug2k)} target="_blank" rel="noopener noreferrer"
                     title={`View ${name} on 2KRatings.com`}
                     style={{color:t.tableText,textDecoration:"none",borderBottom:`1px dotted ${t.tableTextSubtle}`}}
                     onMouseEnter={e=>{e.currentTarget.style.color="#60a5fa";e.currentTarget.style.borderBottomColor="#60a5fa";}}
@@ -248,7 +251,7 @@ export default function LeagueApp() {
     (async () => {
       try {
         const [rosterRes, summaryRes, picksRes, headersRes] = await Promise.all([
-          supabase.from("roster").select("team_abbr,player_name,position,ovr,ovr_2k,salary_yr1,salary_yr2,salary_yr3,salary_yr4,salary_yr5,salary_yr1_label,salary_yr2_label,salary_yr3_label,salary_yr4_label,salary_yr5_label,option_type").order("id"),
+          supabase.from("roster").select("team_abbr,player_name,position,ovr,ovr_2k,slug_2k,salary_yr1,salary_yr2,salary_yr3,salary_yr4,salary_yr5,salary_yr1_label,salary_yr2_label,salary_yr3_label,salary_yr4_label,salary_yr5_label,option_type").order("id"),
           supabase.from("league_summary").select("team_abbr,gm,avg_ovr,cap_space_with_holds"),
           supabase.from("draft_picks").select("team_abbr,pick_year,from_team").order("pick_year"),
           supabase.from("season_headers").select("year_index,label").order("year_index"),
@@ -274,6 +277,7 @@ export default function LeagueApp() {
             [row.salary_yr1, row.salary_yr2, row.salary_yr3, row.salary_yr4, row.salary_yr5].map(num),
             row.option_type || null,
             [row.salary_yr1_label, row.salary_yr2_label, row.salary_yr3_label, row.salary_yr4_label, row.salary_yr5_label].map(l => l || null),
+            row.slug_2k || null,
           ]);
         }
         const s = {};
