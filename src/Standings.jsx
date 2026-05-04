@@ -7,7 +7,7 @@ const BC = "'Barlow Condensed', sans-serif"
 const EAST = ['ATL','BOS','BKN','CHA','CHI','CLE','DET','IND','MIA','MIL','NYK','ORL','PHI','TOR','WAS']
 const WEST = ['DAL','DEN','GSW','HOU','LAC','LAL','MEM','MIN','NOP','OKC','PHX','POR','SAC','SAS','UTA']
 
-export default function Standings({ theme = 'dark' }) {
+export default function Standings({ theme = 'dark', onTeamClick }) {
   const t = getTheme(theme)
   const [games, setGames] = useState([])
   const [loading, setLoading] = useState(true)
@@ -107,8 +107,15 @@ export default function Standings({ theme = 'dark' }) {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={r.team} style={{ borderBottom:`1px solid ${t.tableLine}` }}>
-                <td style={{ padding:'8px 10px', color:t.tableText, fontFamily:BC, fontWeight:700, whiteSpace:'nowrap' }}><span style={{ color:t.tableTextSubtle, marginRight:6 }}>{i+1}.</span>{r.team}</td>
+              <tr key={r.team}
+                onClick={onTeamClick ? () => onTeamClick(r.team) : undefined}
+                style={{ borderBottom:`1px solid ${t.tableLine}`, cursor: onTeamClick ? 'pointer' : 'default', transition:'background 0.12s' }}
+                onMouseEnter={e=>{ if (onTeamClick) e.currentTarget.style.background = t.tableRowHover }}
+                onMouseLeave={e=>{ e.currentTarget.style.background = 'transparent' }}>
+                <td style={{ padding:'8px 10px', color:t.tableText, fontFamily:BC, fontWeight:700, whiteSpace:'nowrap' }}>
+                  <span style={{ color:t.tableTextSubtle, marginRight:6 }}>{i+1}.</span>
+                  {onTeamClick ? <span style={{ borderBottom:`1px dotted ${t.tableTextSubtle}` }}>{r.team}</span> : r.team}
+                </td>
                 <td style={{ padding:'8px 10px', textAlign:'center', color:t.tableText, fontVariantNumeric:'tabular-nums' }}>{r.W}</td>
                 <td style={{ padding:'8px 10px', textAlign:'center', color:t.tableText, fontVariantNumeric:'tabular-nums' }}>{r.L}</td>
                 <td style={{ padding:'8px 10px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{!r.GP ? '—' : r.GB === 0 ? '—' : r.GB.toFixed(1)}</td>

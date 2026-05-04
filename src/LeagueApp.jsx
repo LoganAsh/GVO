@@ -382,10 +382,12 @@ export default function LeagueApp() {
           transition:"transform 0.25s cubic-bezier(0.4,0,0.2,1)",
           boxShadow:sidebarOpen?"4px 0 24px rgba(0,0,0,0.18)":"none"}}>
         <div style={{padding:"14px",borderBottom:`1px solid ${th.borderSoft}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,minWidth:0}}>
+          <button onClick={()=>{setPage("landing");setSidebarOpen(false);}}
+            aria-label="Back to home"
+            style={{display:"flex",alignItems:"center",gap:8,minWidth:0,background:"none",border:"none",cursor:"pointer",padding:"4px 6px",margin:"-4px -6px",borderRadius:6,color:th.text}}>
             <div style={{width:28,height:28,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",flexShrink:0}}><BasketballIcon size={16}/></div>
             <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>MENU</span>
-          </div>
+          </button>
           <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0}}>
             <button onClick={()=>setTheme(theme==="light"?"dark":"light")}
               aria-label={theme==="light"?"Switch to dark theme":"Switch to light theme"}
@@ -620,7 +622,7 @@ export default function LeagueApp() {
               </button>
             ))}
           </div>
-          {leagueTab === "standings"    && <Standings    theme={theme}/>}
+          {leagueTab === "standings"    && <Standings    theme={theme} onTeamClick={pick}/>}
           {leagueTab === "leaderboard"  && <Leaderboard  theme={theme}/>}
           {leagueTab === "league_stats" && <LeagueStats  theme={theme}/>}
         </div>
