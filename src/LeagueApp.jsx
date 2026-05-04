@@ -48,23 +48,28 @@ function ovrBg(ovr) {
   return "rgba(148,163,184,0.08)";
 }
 
-// Display name → real name used by 2kratings.com when the in-app name
-// doesn't match. Keep this in sync with the server-side aliases in the
-// sync-2k-ratings edge function.
-const PLAYER_NAME_ALIASES = {
-  'bones hyland': 'Nahshon Hyland',
+// Display name → exact 2kratings.com slug. Mirrors SLUG_ALIASES in the
+// sync-2k-ratings edge function so the player-name link resolves to the
+// right page even before the next sync writes a slug to the roster row.
+const PLAYER_SLUG_ALIASES = {
+  'bones hyland':    'nahshon-hyland',
+  'cam whitmore':    'cameron-whitmore',
+  'larry nance jr.': 'larry-nance-jr',
+  'larry nance jr':  'larry-nance-jr',
+  'nic claxton':     'nicolas-claxton',
+  'ron holland':     'ronald-holland',
+  'gg jackson':      'gregory-jackson-ii',
 }
 
-// Build the 2KRatings.com URL for a player. If `storedSlug` is provided
-// (recorded by the sync-2k-ratings edge function after a successful 200
-// response), use it directly — that's the slug the scraper resolved to,
-// covering all the anomalies (R.J. → rj, Bones → nahshon, etc.).
-// Otherwise generate one from the name as a best-effort fallback.
+// Build the 2KRatings.com URL for a player. Resolution order:
+//   1. `storedSlug` recorded by the scraper for this row,
+//   2. PLAYER_SLUG_ALIASES (manually-curated overrides),
+//   3. default name → slug rules.
 function ratings2kUrl(name, storedSlug) {
   if (storedSlug) return `https://www.2kratings.com/${storedSlug}`
   const aliasKey = (name || '').trim().toLowerCase()
-  const source = PLAYER_NAME_ALIASES[aliasKey] || name
-  const slug = (source || '')
+  if (PLAYER_SLUG_ALIASES[aliasKey]) return `https://www.2kratings.com/${PLAYER_SLUG_ALIASES[aliasKey]}`
+  const slug = (name || '')
     .toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/['']/g, '')
