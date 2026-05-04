@@ -675,31 +675,17 @@ export default function LeagueApp() {
         ::-webkit-scrollbar-track{background:transparent}
         ::-webkit-scrollbar-thumb{background:${th.border};border-radius:99px}
         input::placeholder{color:${th.textVeryMuted}}
-        @media(max-width:640px){.desk{display:none!important}}
-        @media(min-width:641px){.mob{display:none!important}}
       `}</style>
 
       <div style={{display:"flex",minHeight:"100vh",background:th.bgGradient}}>
 
-        {/* Desktop Sidebar */}
-        <div className="desk" style={{width:200,flexShrink:0,background:th.surface,borderRight:`1px solid ${th.borderSoft}`,display:"flex",flexDirection:"column",position:"sticky",top:0,height:"100vh",overflowY:"auto"}}>
-          <button onClick={()=>setPage("landing")} style={{padding:"16px",borderBottom:`1px solid ${th.borderSoft}`,display:"flex",alignItems:"center",gap:10,background:"none",border:"none",cursor:"pointer",textAlign:"left",width:"100%"}}>
-            <div style={{width:32,height:32,borderRadius:8,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",flexShrink:0}}><BasketballIcon size={18}/></div>
-            <div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,lineHeight:1,color:th.text}}>GVO SIM LEAGUE</div>
-              <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:9,letterSpacing:3,color:th.textSubtle,textTransform:"uppercase"}}>Front Office</div>
-            </div>
-          </button>
-          <TeamList/>
-        </div>
-
-        {/* Slide-out drawer (mobile + landing) */}
+        {/* Slide-out drawer (same one used on the landing page) */}
         {drawer}
 
         {/* Main Content */}
         <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
-          {/* Mobile Header */}
-          <div className="mob" style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:`1px solid ${th.borderSoft}`,background:th.headerBg,position:"sticky",top:0,zIndex:100}}>
+          {/* Header (always visible: hamburger + brand + active team) */}
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:`1px solid ${th.borderSoft}`,background:th.headerBg,position:"sticky",top:0,zIndex:100}}>
             <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)} style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 10px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}><HamburgerIcon size={16}/></button>
             <button onClick={()=>setPage("landing")} style={{display:"flex",alignItems:"center",gap:8,background:"none",border:"none",cursor:"pointer"}}>
               <div style={{width:26,height:26,borderRadius:6,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}><BasketballIcon size={15}/></div>
