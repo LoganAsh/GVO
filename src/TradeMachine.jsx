@@ -43,7 +43,7 @@ function PlayerRow({ player, side, onToggle, theme }) {
 function pickLabel(p) {
   const yr = p.year || p.pick_year || '?'
   const rd = p.round ? `R${p.round}` : ''
-  const orig = p.original_team && p.original_team !== p.team_abbr ? ` via ${p.original_team}` : (p.from_team && p.from_team !== p.team_abbr ? ` via ${p.from_team}` : '')
+  const orig = p.original_team && p.owned_by && p.original_team !== p.owned_by ? ` via ${p.original_team}` : ''
   const swap = p.pick_type === 'swap' || p.pick_type === 'multi_swap' ? ' (swap)' : ''
   return `${yr} ${rd}${orig}${swap}`.trim()
 }
@@ -246,9 +246,10 @@ export default function TradeMachine({ theme = 'dark' }) {
       setRostersByTeam(rosterByTeam)
       const picksByTeam = {}
       for (const row of picksRes.data || []) {
-        if (!row.team_abbr) continue
-        if (!picksByTeam[row.team_abbr]) picksByTeam[row.team_abbr] = []
-        picksByTeam[row.team_abbr].push(row)
+        const owner = row.owned_by
+        if (!owner) continue
+        if (!picksByTeam[owner]) picksByTeam[owner] = []
+        picksByTeam[owner].push(row)
       }
       setPicksByTeam(picksByTeam)
       setDraftSettings(settingsRes.data || null)
