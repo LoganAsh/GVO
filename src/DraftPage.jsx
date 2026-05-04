@@ -32,7 +32,7 @@ function normalizeName(s) {
     .replace(/\s+/g, ' ').trim()
 }
 
-const PROSPECTS_PER_PAGE = 25
+const PROSPECTS_PER_PAGE = 10
 
 export default function DraftPage({ theme = 'dark' }) {
   const t = getTheme(theme)
@@ -164,12 +164,12 @@ export default function DraftPage({ theme = 'dark' }) {
           </div>
           <div style={{ display:'flex', gap:8, alignItems:'center' }}>
             <button onClick={()=>setProspectPage(p => Math.max(0, p-1))} disabled={currentProspectPage === 0}
-              style={{ padding:'4px 12px', borderRadius:6, border:`1px solid ${t.border}`, background:'transparent', color: currentProspectPage === 0 ? t.tableTextVeryMuted : t.tableText, fontFamily:BC, fontSize:11, letterSpacing:1, cursor: currentProspectPage === 0 ? 'default' : 'pointer' }}>← Prev 25</button>
+              style={{ padding:'4px 12px', borderRadius:6, border:`1px solid ${t.border}`, background:'transparent', color: currentProspectPage === 0 ? t.tableTextVeryMuted : t.tableText, fontFamily:BC, fontSize:11, letterSpacing:1, cursor: currentProspectPage === 0 ? 'default' : 'pointer' }}>← Prev 10</button>
             <span style={{ fontFamily:BC, fontSize:11, color:t.tableTextSubtle, letterSpacing:1, fontVariantNumeric:'tabular-nums' }}>
               {availableProspects.length === 0 ? '0' : `${prospectStart+1}–${Math.min(prospectStart+PROSPECTS_PER_PAGE, availableProspects.length)} of ${availableProspects.length}`}
             </span>
             <button onClick={()=>setProspectPage(p => Math.min(totalProspectPages-1, p+1))} disabled={currentProspectPage >= totalProspectPages-1}
-              style={{ padding:'4px 12px', borderRadius:6, border:`1px solid ${t.border}`, background:'transparent', color: currentProspectPage >= totalProspectPages-1 ? t.tableTextVeryMuted : t.tableText, fontFamily:BC, fontSize:11, letterSpacing:1, cursor: currentProspectPage >= totalProspectPages-1 ? 'default' : 'pointer' }}>Next 25 →</button>
+              style={{ padding:'4px 12px', borderRadius:6, border:`1px solid ${t.border}`, background:'transparent', color: currentProspectPage >= totalProspectPages-1 ? t.tableTextVeryMuted : t.tableText, fontFamily:BC, fontSize:11, letterSpacing:1, cursor: currentProspectPage >= totalProspectPages-1 ? 'default' : 'pointer' }}>Next 10 →</button>
           </div>
         </div>
         <div style={{ overflowX:'auto' }}>

@@ -487,11 +487,12 @@ function matchRosterId(typed, roster) {
 // ── Draft Tab ─────────────────────────────────────────────────────────────────
 
 const POSITIONS = ['PG','SG','SF','PF','C','G','F','G/F','F/C']
-const EMPTY_DRAFT_PICK = { pick_number: '', owns_team: 'ATL', original_team: 'ATL', player_name: '', school: '', position: '', age: '' }
+const EMPTY_DRAFT_PICK = { pick_number: '', owns_team: 'ATL', original_team: 'ATL', player_name: '', school: '', position: '', height: '' }
 
 function DraftTab() {
   const [picks, setPicks]                 = useState([])
   const [settings, setSettings]           = useState(null)
+  const [prospects, setProspects]         = useState([])
   const [prospectCount, setProspectCount] = useState(0)
   const [prospectUpdated, setProspectUpdated] = useState(null)
   const [loading, setLoading]             = useState(true)
@@ -515,12 +516,13 @@ function DraftTab() {
     const [picksRes, settingsRes, prospectsRes] = await Promise.all([
       supabase.from('draft_2026').select('*').order('pick_number'),
       supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
-      supabase.from('prospects').select('id, updated_at', { count: 'exact', head: false }).order('updated_at', { ascending: false }).limit(1),
+      supabase.from('prospects').select('*').order('rank'),
     ])
     setPicks(picksRes.data || [])
     setSettings(settingsRes.data || null)
-    setProspectCount(prospectsRes.count || 0)
-    setProspectUpdated(prospectsRes.data?.[0]?.updated_at || null)
+    setProspects(prospectsRes.data || [])
+    setProspectCount((prospectsRes.data || []).length)
+    setProspectUpdated((prospectsRes.data || [])[0]?.updated_at || null)
     if (settingsRes.data) {
       setClockMinutes(String(Math.round((settingsRes.data.clock_seconds || 600) / 60)))
       // Convert UTC ISO to a value the datetime-local input accepts (local TZ)
@@ -546,9 +548,25 @@ function DraftTab() {
       player_name: p.player_name || '',
       school: p.school || '',
       position: p.position || '',
-      age: p.age != null ? String(p.age) : '',
+      height: p.height || '',
     })
     setEditId(p.id); setSaveError(null); setShowForm(true)
+  }
+
+  const selectProspect = (prospectId) => {
+    if (!prospectId) {
+      setForm(f => ({ ...f, player_name: '', position: '', school: '', height: '' }))
+      return
+    }
+    const p = prospects.find(x => String(x.id) === String(prospectId))
+    if (!p) return
+    setForm(f => ({
+      ...f,
+      player_name: p.name || '',
+      position: p.position || '',
+      school: p.school || '',
+      height: p.height || '',
+    }))
   }
 
   const handleSave = async () => {
@@ -560,7 +578,7 @@ function DraftTab() {
       player_name: form.player_name.trim() || null,
       school: form.school.trim() || null,
       position: form.position || null,
-      age: form.age ? Number(form.age) : null,
+      height: form.height.trim() || null,
     }
     if (!payload.pick_number || isNaN(payload.pick_number)) {
       setSaving(false); setSaveError('Pick # is required'); return
@@ -710,7 +728,19 @@ function DraftTab() {
           <button onClick={openNew} style={{ padding:'8px 18px', borderRadius:7, border:'none', background:'linear-gradient(135deg,#f97316,#ef4444)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:1, cursor:'pointer' }}>+ Add Pick</button>
         </div>
 
-        {showForm && (
+        {showForm && (() => {
+          // Names already used by other picks (lowercased) — hide them from
+          // the prospect dropdown so we don't list someone twice. Keep the
+          // currently-edited pick's name visible.
+          const taken = new Set(
+            picks.filter(p => p.id !== editId && p.player_name)
+              .map(p => p.player_name.trim().toLowerCase())
+          )
+          const availableProspects = prospects.filter(p => !taken.has((p.name || '').trim().toLowerCase()))
+          // Selected prospect id: match by name against the form
+          const matchByName = prospects.find(p => (p.name || '').trim().toLowerCase() === (form.player_name || '').trim().toLowerCase())
+          const selectedProspectId = matchByName ? String(matchByName.id) : ''
+          return (
           <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:18, marginBottom:18 }}>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(160px, 1fr))', gap:12, marginBottom:14 }}>
               <div>
@@ -729,13 +759,21 @@ function DraftTab() {
                   {TEAMS.map(t=><option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
-              <div>
-                <label style={labelStyle}>Player Name</label>
-                <input value={form.player_name} onChange={e=>set('player_name', e.target.value)} placeholder="Empty until picked" style={inputStyle}/>
-              </div>
-              <div>
-                <label style={labelStyle}>School</label>
-                <input value={form.school} onChange={e=>set('school', e.target.value)} style={inputStyle}/>
+              <div style={{ gridColumn:'1 / -1' }}>
+                <label style={labelStyle}>Player {prospects.length === 0 && <span style={{ color:'#fbbf24' }}>(no prospects synced yet)</span>}</label>
+                <select value={selectedProspectId} onChange={e=>selectProspect(e.target.value)} style={inputStyle}>
+                  <option value="">— Select from Best Available —</option>
+                  {availableProspects.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.rank}. {p.name}{p.position ? ` · ${p.position}` : ''}{p.school ? ` · ${p.school}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {form.player_name && !matchByName && (
+                  <div style={{ marginTop:6, fontFamily:BC, fontSize:11, letterSpacing:1, color:'#fbbf24' }}>
+                    Custom: {form.player_name}
+                  </div>
+                )}
               </div>
               <div>
                 <label style={labelStyle}>Position</label>
@@ -745,8 +783,12 @@ function DraftTab() {
                 </select>
               </div>
               <div>
-                <label style={labelStyle}>Age</label>
-                <input type="number" min="0" value={form.age} onChange={e=>set('age', e.target.value)} style={inputStyle}/>
+                <label style={labelStyle}>School</label>
+                <input value={form.school} onChange={e=>set('school', e.target.value)} style={inputStyle}/>
+              </div>
+              <div>
+                <label style={labelStyle}>Height</label>
+                <input value={form.height} onChange={e=>set('height', e.target.value)} placeholder='e.g. 6-9' style={inputStyle}/>
               </div>
             </div>
             {saveError && <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:7, padding:'9px 12px', color:'#f87171', fontSize:12, fontFamily:B, marginBottom:12 }}>{saveError}</div>}
@@ -755,14 +797,15 @@ function DraftTab() {
               <button onClick={()=>setShowForm(false)} style={{ padding:'8px 18px', borderRadius:7, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontWeight:700, fontSize:12, letterSpacing:1, cursor:'pointer' }}>CANCEL</button>
             </div>
           </div>
-        )}
+          )
+        })()}
 
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
-                {['#','Owns','Original','Player','School','Pos','Age',''].map((h,i)=>(
-                  <th key={i} style={{ textAlign:i===3||i===4?'left':'center', padding:'8px 10px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase', fontWeight:700 }}>{h}</th>
+                {['#','Owns','Original','Player','Position','School','Height',''].map((h,i)=>(
+                  <th key={i} style={{ textAlign:i===3||i===5?'left':'center', padding:'8px 10px', color:'#475569', fontFamily:BC, fontSize:10, letterSpacing:2, textTransform:'uppercase', fontWeight:700 }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -775,9 +818,9 @@ function DraftTab() {
                   <td style={{ padding:'7px 10px', textAlign:'center', color:'#f1f5f9', fontFamily:BC, fontWeight:700 }}>{p.owns_team}</td>
                   <td style={{ padding:'7px 10px', textAlign:'center', color:'#94a3b8', fontFamily:BC }}>{p.original_team}</td>
                   <td style={{ padding:'7px 10px', color: p.player_name ? '#f1f5f9' : '#475569', fontStyle: p.player_name ? 'normal' : 'italic' }}>{p.player_name || '—'}</td>
-                  <td style={{ padding:'7px 10px', color:'#94a3b8' }}>{p.school || '—'}</td>
                   <td style={{ padding:'7px 10px', textAlign:'center', color:'#94a3b8', fontFamily:BC }}>{p.position || '—'}</td>
-                  <td style={{ padding:'7px 10px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{p.age || '—'}</td>
+                  <td style={{ padding:'7px 10px', color:'#94a3b8' }}>{p.school || '—'}</td>
+                  <td style={{ padding:'7px 10px', textAlign:'center', color:'#94a3b8', fontVariantNumeric:'tabular-nums' }}>{p.height || '—'}</td>
                   <td style={{ padding:'7px 10px', textAlign:'right', whiteSpace:'nowrap' }}>
                     <button onClick={()=>openEdit(p)} style={{ marginRight:6, padding:'5px 10px', borderRadius:5, border:'1px solid rgba(255,255,255,0.1)', background:'transparent', color:'#94a3b8', fontFamily:BC, fontWeight:700, fontSize:10, letterSpacing:1, cursor:'pointer' }}>EDIT</button>
                     <button onClick={()=>handleDelete(p.id)} style={{ padding:'5px 10px', borderRadius:5, border:'1px solid rgba(239,68,68,0.3)', background:'transparent', color:'#f87171', fontFamily:BC, fontWeight:700, fontSize:10, letterSpacing:1, cursor:'pointer' }}>DEL</button>
