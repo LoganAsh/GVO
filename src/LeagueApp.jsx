@@ -48,6 +48,21 @@ function ovrBg(ovr) {
   return "rgba(148,163,184,0.08)";
 }
 
+// Build the 2KRatings.com URL for a player. Slug rules: lowercase, strip
+// accents, drop apostrophes, drop generational suffixes (Jr., II, …),
+// then collapse anything non-alphanumeric to hyphens.
+function ratings2kUrl(name) {
+  const slug = (name || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/['']/g, '')
+    .replace(/\b(jr|sr|ii|iii|iv)\.?\b/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  if (!slug) return null
+  return `https://www.2kratings.com/${slug}`
+}
+
 function capStatus(capSpace) {
   const payroll = T.sat - capSpace;
   if (payroll >= T.a2) return { label:"Above 2nd Apron", color:"#f43f5e" };
@@ -108,7 +123,17 @@ function RosterTable({ players, seasonLabels = [], th }) {
               onMouseEnter={e=>e.currentTarget.style.background=t.tableRowHover}
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <td style={{padding:"10px 12px",color:dimText,fontSize:11,fontWeight:700,textAlign:"center"}}>{i+1}</td>
-              <td style={{padding:"10px 12px",color:t.tableText,fontWeight:600,whiteSpace:"nowrap"}}>{name}</td>
+              <td style={{padding:"10px 12px",color:t.tableText,fontWeight:600,whiteSpace:"nowrap"}}>
+                {ratings2kUrl(name) ? (
+                  <a href={ratings2kUrl(name)} target="_blank" rel="noopener noreferrer"
+                    title={`View ${name} on 2KRatings.com`}
+                    style={{color:t.tableText,textDecoration:"none",borderBottom:`1px dotted ${t.tableTextSubtle}`}}
+                    onMouseEnter={e=>{e.currentTarget.style.color="#60a5fa";e.currentTarget.style.borderBottomColor="#60a5fa";}}
+                    onMouseLeave={e=>{e.currentTarget.style.color=t.tableText;e.currentTarget.style.borderBottomColor=t.tableTextSubtle;}}>
+                    {name}
+                  </a>
+                ) : name}
+              </td>
               <td style={{padding:"10px 12px",textAlign:"center"}}>
                 {pos?<span style={{background:"rgba(99,102,241,0.15)",color:"#818cf8",borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700}}>{pos}</span>:<span style={{color:dashColor}}>—</span>}
               </td>
