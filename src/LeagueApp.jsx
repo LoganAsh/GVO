@@ -239,7 +239,7 @@ export default function LeagueApp() {
     (async () => {
       try {
         const [rosterRes, summaryRes, picksRes, headersRes] = await Promise.all([
-          supabase.from("roster").select("team_abbr,player_name,position,ovr,salary_yr1,salary_yr2,salary_yr3,salary_yr4,salary_yr5,salary_yr1_label,salary_yr2_label,salary_yr3_label,salary_yr4_label,salary_yr5_label,option_type").order("id"),
+          supabase.from("roster").select("team_abbr,player_name,position,ovr,ovr_2k,salary_yr1,salary_yr2,salary_yr3,salary_yr4,salary_yr5,salary_yr1_label,salary_yr2_label,salary_yr3_label,salary_yr4_label,salary_yr5_label,option_type").order("id"),
           supabase.from("league_summary").select("team_abbr,gm,avg_ovr,cap_space_with_holds"),
           supabase.from("draft_picks").select("team_abbr,pick_year,from_team").order("pick_year"),
           supabase.from("season_headers").select("year_index,label").order("year_index"),
@@ -256,10 +256,12 @@ export default function LeagueApp() {
           const t = row.team_abbr;
           if (!t) continue;
           if (!r[t]) r[t] = [];
+          // Prefer the scraped 2K rating; fall back to the sheet value.
+          const ovrFinal = row.ovr_2k != null ? Number(row.ovr_2k) : (row.ovr != null ? Number(row.ovr) : null)
           r[t].push([
             row.player_name,
             row.position || "",
-            row.ovr != null ? Number(row.ovr) : null,
+            ovrFinal,
             [row.salary_yr1, row.salary_yr2, row.salary_yr3, row.salary_yr4, row.salary_yr5].map(num),
             row.option_type || null,
             [row.salary_yr1_label, row.salary_yr2_label, row.salary_yr3_label, row.salary_yr4_label, row.salary_yr5_label].map(l => l || null),

@@ -11,6 +11,7 @@ const SYNC_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/sync-lea
 const PARSE_BOX_SCORE_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/parse-box-score'
 const DISCORD_SYNC_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/discord-sync'
 const SYNC_PROSPECTS_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/sync-prospects'
+const SYNC_2K_URL = 'https://vdbrbtuidsfftgotmlol.supabase.co/functions/v1/sync-2k-ratings'
 
 const inputStyle  = { background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:8, padding:'9px 12px', color:'#f1f5f9', fontFamily:B, fontSize:13, outline:'none', width:'100%', boxSizing:'border-box' }
 const labelStyle  = { fontFamily:BC, fontSize:10, letterSpacing:2, color:'#475569', textTransform:'uppercase', display:'block', marginBottom:5 }
@@ -1440,6 +1441,8 @@ export default function AdminPortal({ session, onLogout }) {
   const [syncStatus, setSyncStatus]     = useState(null)
   const [syncing, setSyncing]           = useState(false)
   const [syncTeam, setSyncTeam]         = useState('ALL')
+  const [sync2kStatus, setSync2kStatus] = useState(null)
+  const [syncing2k, setSyncing2k]       = useState(false)
   const [players, setPlayers]           = useState([])
   const [selectedTeam, setSelectedTeam] = useState('WAS')
   const [saving, setSaving]             = useState({})
@@ -1466,6 +1469,17 @@ export default function AdminPortal({ session, onLogout }) {
       setSyncStatus({ ok:json.results?.filter(r=>r.ok).length||0, fail:json.results?.filter(r=>!r.ok).length||0, results:json.results })
     } catch(e) { setSyncStatus({error:e.message}) }
     setSyncing(false)
+  }
+  const handleSync2k = async () => {
+    setSyncing2k(true); setSync2kStatus(null)
+    try {
+      const qs = syncTeam === 'ALL' ? '' : `?team=${syncTeam}`
+      const res = await fetch(`${SYNC_2K_URL}${qs}`, { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${session.access_token}` }, body:'{}' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+      setSync2kStatus(json)
+    } catch(e) { setSync2kStatus({ error: e.message }) }
+    setSyncing2k(false)
   }
   const updateOptionType = async (id, value) => {
     setSaving(s=>({...s,[id]:true}))
@@ -1539,7 +1553,7 @@ export default function AdminPortal({ session, onLogout }) {
             </div>
             <div style={{ fontSize:12, color:'#475569', fontFamily:BC, letterSpacing:1, marginBottom:16 }}>Data syncs automatically every hour. Use this to force an immediate update from the Google Sheet.</div>
             {syncStatus&&(
-              <div style={{ background:syncStatus.error?'rgba(239,68,68,0.08)':'rgba(52,211,153,0.06)', border:`1px solid ${syncStatus.error?'rgba(239,68,68,0.2)':'rgba(52,211,153,0.2)'}`, borderRadius:10, padding:16 }}>
+              <div style={{ background:syncStatus.error?'rgba(239,68,68,0.08)':'rgba(52,211,153,0.06)', border:`1px solid ${syncStatus.error?'rgba(239,68,68,0.2)':'rgba(52,211,153,0.2)'}`, borderRadius:10, padding:16, marginBottom:16 }}>
                 {syncStatus.error?<div style={{ color:'#f87171', fontSize:13 }}>Error: {syncStatus.error}</div>:(
                   <>
                     <div style={{ fontFamily:BC, fontSize:14, color:'#34d399', marginBottom:10 }}>✓ {syncStatus.ok} team{syncStatus.ok!==1?'s':''} synced{syncStatus.fail>0?`, ${syncStatus.fail} failed`:''}</div>
@@ -1555,6 +1569,40 @@ export default function AdminPortal({ session, onLogout }) {
                 )}
               </div>
             )}
+
+            <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:18, marginTop:6 }}>
+              <div style={{ fontFamily:BC, fontWeight:800, fontSize:13, letterSpacing:1, color:'#f1f5f9', marginBottom:10 }}>2K Ratings (OVR)</div>
+              <div style={{ fontSize:12, color:'#475569', fontFamily:BC, letterSpacing:1, marginBottom:14 }}>Scrapes overall ratings from 2kratings.com for the selected team(s) above and writes them to the public roster (overrides the sheet OVR).</div>
+              <button onClick={handleSync2k} disabled={syncing2k}
+                style={{ padding:'9px 20px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#3b82f6,#6366f1)', color:'#fff', fontFamily:BC, fontWeight:900, fontSize:13, letterSpacing:1, cursor:syncing2k?'wait':'pointer', opacity:syncing2k?0.7:1, display:'inline-flex', alignItems:'center', gap:8 }}>
+                {syncing2k ? <><HourglassIcon size={14}/> <span>Syncing…</span></> : <><SyncIcon size={14}/> <span>Sync 2K Ratings</span></>}
+              </button>
+              {sync2kStatus && (
+                <div style={{ marginTop:12, background: sync2kStatus.error?'rgba(239,68,68,0.08)':'rgba(59,130,246,0.06)', border:`1px solid ${sync2kStatus.error?'rgba(239,68,68,0.2)':'rgba(59,130,246,0.2)'}`, borderRadius:10, padding:14 }}>
+                  {sync2kStatus.error ? (
+                    <div style={{ color:'#f87171', fontSize:13 }}>Error: {sync2kStatus.error}</div>
+                  ) : (
+                    <>
+                      <div style={{ fontFamily:BC, fontSize:13, color:'#93c5fd', marginBottom:8 }}>
+                        Synced {sync2kStatus.synced}/{sync2kStatus.total} players{sync2kStatus.failed>0 ? ` · ${sync2kStatus.failed} failed` : ''}
+                      </div>
+                      {sync2kStatus.failedSample?.length > 0 && (
+                        <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+                          {sync2kStatus.failedSample.map((r,i)=>(
+                            <div key={i} style={{ fontSize:11, fontFamily:BC, color:'#f87171', letterSpacing:0.5 }}>
+                              ✗ {r.team} · {r.name} · {r.reason || `HTTP ${r.status}`}
+                            </div>
+                          ))}
+                          {sync2kStatus.failed > sync2kStatus.failedSample.length && (
+                            <div style={{ fontSize:11, fontFamily:BC, color:'#475569' }}>… and {sync2kStatus.failed - sync2kStatus.failedSample.length} more</div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </Card>
         )}
 
