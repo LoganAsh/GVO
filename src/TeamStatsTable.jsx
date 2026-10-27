@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { PlayerAvatar } from './playerPhotos'
 import { supabase } from './supabase'
 import { getCurrentSeason, fetchAll } from './season'
 import { getTheme } from './theme'
@@ -112,7 +113,7 @@ export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
         <tbody>
           {playerAvgs.map((p, i) => (
             <tr key={i} style={{ borderBottom:`1px solid ${t.tableLine}` }}>
-              <td style={{ padding:'8px 12px', color:t.tableText, fontWeight:600, whiteSpace:'nowrap' }}>{p.player_name}</td>
+              <td style={{ padding:'8px 12px', color:t.tableText, fontWeight:600, whiteSpace:'nowrap' }}><span style={{display:'inline-flex',alignItems:'center',gap:8}}><PlayerAvatar name={p.player_name} size={24}/>{p.player_name}</span></td>
               <td style={{ padding:'8px 6px', textAlign:'center', color:t.tableTextMuted, fontVariantNumeric:'tabular-nums' }}>{p.games}</td>
               {STAT_COLS.map(c => (
                 <td key={c.key} style={{ padding:'8px 6px', textAlign:'center', color:t.tableText, fontVariantNumeric:'tabular-nums' }}>

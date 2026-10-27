@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { PlayerAvatar } from "./playerPhotos";
 import { supabase } from "./supabase";
 import DraftPicksTable from "./DraftPicksTable";
 import TeamStatsTable from "./TeamStatsTable";
@@ -142,6 +143,8 @@ function RosterTable({ players, seasonLabels = [], th }) {
               onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
               <td style={{padding:"10px 12px",color:dimText,fontSize:11,fontWeight:700,textAlign:"center"}}>{i+1}</td>
               <td style={{padding:"10px 12px",color:t.tableText,fontWeight:600,whiteSpace:"nowrap"}}>
+                <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
+                <PlayerAvatar name={name} size={28}/>
                 {ratings2kUrl(name, slug2k) ? (
                   <a href={ratings2kUrl(name, slug2k)} target="_blank" rel="noopener noreferrer"
                     title={`View ${name} on 2KRatings.com`}
@@ -151,6 +154,7 @@ function RosterTable({ players, seasonLabels = [], th }) {
                     {name}
                   </a>
                 ) : name}
+                </span>
               </td>
               <td style={{padding:"10px 12px",textAlign:"center"}}>
                 {pos?<span style={{background:"rgba(99,102,241,0.15)",color:"#818cf8",borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700}}>{pos}</span>:<span style={{color:dashColor}}>—</span>}

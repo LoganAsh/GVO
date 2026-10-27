@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { PlayerAvatar } from './playerPhotos'
 import { supabase } from './supabase'
 import { getCurrentSeason, fetchAll } from './season'
 import { getTheme } from './theme'
@@ -91,7 +92,7 @@ export default function Leaderboard({ theme = 'dark' }) {
               ) : card.rows.map((p, i) => (
                 <tr key={i} style={{ borderBottom: i === card.rows.length-1 ? 'none' : `1px solid ${t.tableLine}` }}>
                   <td style={{ padding:'7px 10px', color:t.tableTextSubtle, fontFamily:BC, fontWeight:700, width:24 }}>{i+1}</td>
-                  <td style={{ padding:'7px 10px', color:t.tableText, fontWeight:600, whiteSpace:'nowrap' }}>{p.player_name}</td>
+                  <td style={{ padding:'7px 10px', color:t.tableText, fontWeight:600, whiteSpace:'nowrap' }}><span style={{display:'inline-flex',alignItems:'center',gap:8}}><PlayerAvatar name={p.player_name} size={24}/>{p.player_name}</span></td>
                   <td style={{ padding:'7px 10px', color:t.tableTextMuted, fontFamily:BC, fontSize:11 }}>
                     <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
                       <TeamLogo abbr={p.team_abbr} size={16}/>

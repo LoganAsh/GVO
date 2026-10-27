@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { PlayerAvatar } from './playerPhotos'
 import { supabase } from './supabase'
 import { getCurrentSeason, fetchAll } from './season'
 import { getTheme } from './theme'
@@ -102,7 +103,9 @@ export default function LeagueStats({ theme = 'dark' }) {
 
   const cellValue = (p, key) => {
     switch (key) {
-      case 'player_name': return p.player_name
+      case 'player_name': return (
+        <span style={{display:'inline-flex',alignItems:'center',gap:8}}><PlayerAvatar name={p.player_name} size={22}/>{p.player_name}</span>
+      )
       case 'team_abbr':   return (
         <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
           <TeamLogo abbr={p.team_abbr} size={16}/>
