@@ -409,7 +409,7 @@ export default function LeagueApp() {
       </div>
       <div style={{flex:1,minHeight:0,overflowY:"auto",padding:"0 12px 16px",
         display:"grid",gridTemplateColumns:"repeat(3, minmax(0, 1fr))",gap:8,alignContent:"start"}}>
-        {[...TEAMS].sort((a,b)=>FULL[a].split(" ").slice(-1)[0].localeCompare(FULL[b].split(" ").slice(-1)[0])).map(t=>{
+        {[...TEAMS].sort().map(t=>{
           const active = t===sel && page==="team";
           return (
             <button key={t} onClick={()=>pick(t)} aria-current={active?"page":undefined}
