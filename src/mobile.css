@@ -1,0 +1,9 @@
+/* Mobile layout: bottom tab bar replaces the hamburger below 768px. */
+.gvo-bottom-nav { display: none; }
+
+@media (max-width: 768px) {
+  .gvo-bottom-nav { display: flex; }
+  .gvo-hamburger, .gvo-desktop-only { display: none !important; }
+  /* Leave room so the last row of content isn't hidden behind the bar. */
+  body { padding-bottom: calc(57px + env(safe-area-inset-bottom, 0px)) !important; }
+}

@@ -8,6 +8,7 @@ import LeagueStats from "./LeagueStats";
 import DiscordFeedPage from "./DiscordFeedPage";
 import DraftPage from "./DraftPage";
 import TradeMachine from "./TradeMachine";
+import BottomNav from "./BottomNav";
 import { getTheme } from "./theme";
 import { BasketballIcon, ClipboardIcon, TargetIcon, BarChartIcon, HamburgerIcon } from "./Icons";
 
@@ -241,6 +242,7 @@ export default function LeagueApp() {
   }, [theme]);
 
   const th = getTheme(theme);
+  useEffect(() => { window.scrollTo(0, 0); }, [page, sel]);
   const drawerRef = useRef(null);
   const lastFocusRef = useRef(null);
 
@@ -471,6 +473,24 @@ export default function LeagueApp() {
     </>
   );
 
+  const activeTab = sidebarOpen ? "more"
+    : page === "team" ? "teams"
+    : page === "draft" ? "draft"
+    : page === "trade_machine" ? "trades"
+    : "home";
+  const onNavigate = (key) => {
+    if (key === "more") { setTeamsExpanded(false); setSidebarOpen(true); return; }
+    // Tapping Teams while already on a team opens the team switcher.
+    if (key === "teams") {
+      if (page === "team") { setTeamsExpanded(true); setSidebarOpen(true); }
+      else { setPage("team"); setSidebarOpen(false); }
+      return;
+    }
+    setSidebarOpen(false);
+    setPage({ home: "landing", draft: "draft", trades: "trade_machine" }[key]);
+  };
+  const bottomNav = <BottomNav active={activeTab} th={th} onNavigate={onNavigate}/>;
+
   // ── Trade Machine ──────────────────────────────────────────────
   if (page === "trade_machine") {
     return (
@@ -484,7 +504,7 @@ export default function LeagueApp() {
           ::-webkit-scrollbar-thumb{background:${th.border};border-radius:99px}
         `}</style>
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 20px",borderBottom:`1px solid ${th.borderSoft}`,flexShrink:0}}>
-          <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
+          <button className="gvo-hamburger" aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
             style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:8,padding:"9px 11px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
             <HamburgerIcon size={16}/>
           </button>
@@ -493,7 +513,7 @@ export default function LeagueApp() {
             <div style={{width:30,height:30,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}><BasketballIcon size={16}/></div>
             <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>GVO SIM LEAGUE</span>
           </button>
-          <div style={{marginLeft:"auto"}}>
+          <div className="gvo-desktop-only" style={{marginLeft:"auto"}}>
             <button onClick={()=>setPage("landing")}
               style={{background:"none",border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 12px",color:th.textMuted,cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
               ← Home
@@ -511,6 +531,7 @@ export default function LeagueApp() {
           GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
+        {bottomNav}
       </div>
     );
   }
@@ -528,7 +549,7 @@ export default function LeagueApp() {
           ::-webkit-scrollbar-thumb{background:${th.border};border-radius:99px}
         `}</style>
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 20px",borderBottom:`1px solid ${th.borderSoft}`,flexShrink:0}}>
-          <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
+          <button className="gvo-hamburger" aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
             style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:8,padding:"9px 11px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
             <HamburgerIcon size={16}/>
           </button>
@@ -537,7 +558,7 @@ export default function LeagueApp() {
             <div style={{width:30,height:30,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}><BasketballIcon size={16}/></div>
             <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>GVO SIM LEAGUE</span>
           </button>
-          <div style={{marginLeft:"auto"}}>
+          <div className="gvo-desktop-only" style={{marginLeft:"auto"}}>
             <button onClick={()=>setPage("landing")}
               style={{background:"none",border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 12px",color:th.textMuted,cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
               ← Home
@@ -555,6 +576,7 @@ export default function LeagueApp() {
           GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
+        {bottomNav}
       </div>
     );
   }
@@ -573,7 +595,7 @@ export default function LeagueApp() {
           ::-webkit-scrollbar-thumb{background:${th.border};border-radius:99px}
         `}</style>
         <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 20px",borderBottom:`1px solid ${th.borderSoft}`,flexShrink:0}}>
-          <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
+          <button className="gvo-hamburger" aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
             style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:8,padding:"9px 11px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
             <HamburgerIcon size={16}/>
           </button>
@@ -582,7 +604,7 @@ export default function LeagueApp() {
             <div style={{width:30,height:30,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}><BasketballIcon size={16}/></div>
             <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>GVO SIM LEAGUE</span>
           </button>
-          <div style={{marginLeft:"auto"}}>
+          <div className="gvo-desktop-only" style={{marginLeft:"auto"}}>
             <button onClick={()=>setPage("landing")}
               style={{background:"none",border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 12px",color:th.textMuted,cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
               ← Home
@@ -600,6 +622,7 @@ export default function LeagueApp() {
           GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
+        {bottomNav}
       </div>
     );
   }
@@ -617,9 +640,9 @@ export default function LeagueApp() {
           ::-webkit-scrollbar-track{background:transparent}
           ::-webkit-scrollbar-thumb{background:${th.border};border-radius:99px}
         `}</style>
-        {/* Header */}
-        <div style={{display:"flex",alignItems:"center",padding:"14px 20px",borderBottom:`1px solid ${th.borderSoft}`,flexShrink:0}}>
-          <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
+        {/* Header (desktop only; mobile uses the bottom bar) */}
+        <div className="gvo-desktop-only" style={{display:"flex",alignItems:"center",padding:"14px 20px",borderBottom:`1px solid ${th.borderSoft}`,flexShrink:0}}>
+          <button className="gvo-hamburger" aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
             style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:8,padding:"9px 11px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
             <HamburgerIcon size={16}/>
           </button>
@@ -660,6 +683,7 @@ export default function LeagueApp() {
           GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
+        {bottomNav}
       </div>
     );
   }
@@ -681,12 +705,13 @@ export default function LeagueApp() {
 
         {/* Slide-out drawer (same one used on the landing page) */}
         {drawer}
+        {bottomNav}
 
         {/* Main Content */}
         <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0}}>
           {/* Header (always visible: hamburger + brand + active team) */}
           <div style={{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:`1px solid ${th.borderSoft}`,background:th.headerBg,position:"sticky",top:0,zIndex:100}}>
-            <button aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)} style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 10px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}><HamburgerIcon size={16}/></button>
+            <button className="gvo-hamburger" aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)} style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 10px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}><HamburgerIcon size={16}/></button>
             <button onClick={()=>setPage("landing")} style={{display:"flex",alignItems:"center",gap:8,background:"none",border:"none",cursor:"pointer"}}>
               <div style={{width:26,height:26,borderRadius:6,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}><BasketballIcon size={15}/></div>
               <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>GVO SIM LEAGUE</span>
