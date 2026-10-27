@@ -232,6 +232,9 @@ export default function LeagueApp() {
   const [leagueTab, setLeagueTab] = useState("standings"); // landing-page tabs
   const [search, setSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Mobile bottom sheet: how far the sheet has been dragged down (px).
+  const [sheetDrag, setSheetDrag] = useState(0);
+  const dragStartRef = useRef(null);
   const [teamsExpanded, setTeamsExpanded] = useState(true);
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "dark";
@@ -396,13 +399,20 @@ export default function LeagueApp() {
           opacity:sidebarOpen?1:0,pointerEvents:sidebarOpen?"auto":"none",
           transition:"opacity 0.22s ease"}}/>
       <div ref={drawerRef} role="dialog" aria-modal="true" aria-label="Teams menu"
+        className="gvo-drawer" data-open={sidebarOpen ? "true" : "false"} data-dragging={sheetDrag > 0 ? "true" : "false"}
         inert={sidebarOpen?undefined:""}
-        style={{position:"fixed",top:0,left:0,bottom:0,width:240,background:th.surface,
-          borderRight:`1px solid ${th.border}`,
+        style={{"--sheet-drag":`${sheetDrag}px`,position:"fixed",top:0,left:0,bottom:0,width:240,background:th.surface,
+          borderRight:`1px solid ${th.border}`,borderTop:`1px solid ${th.border}`,
           display:"flex",flexDirection:"column",zIndex:201,
           transform:sidebarOpen?"translateX(0)":"translateX(-100%)",
           transition:"transform 0.25s cubic-bezier(0.4,0,0.2,1)",
           boxShadow:sidebarOpen?"4px 0 24px rgba(0,0,0,0.18)":"none"}}>
+        <div className="gvo-sheet-handle"
+          onTouchStart={e=>{dragStartRef.current=e.touches[0].clientY;}}
+          onTouchMove={e=>{if(dragStartRef.current!=null) setSheetDrag(Math.max(0,e.touches[0].clientY-dragStartRef.current));}}
+          onTouchEnd={()=>{if(sheetDrag>80) setSidebarOpen(false); setSheetDrag(0); dragStartRef.current=null;}}>
+          <span style={{background:th.border}}/>
+        </div>
         <div style={{padding:"14px",borderBottom:`1px solid ${th.borderSoft}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
           <button onClick={()=>{setPage("landing");setSidebarOpen(false);}}
             aria-label="Back to home"
