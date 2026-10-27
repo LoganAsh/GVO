@@ -45,7 +45,7 @@ export default function LeagueStats({ theme = 'dark' }) {
   const players = useMemo(() => {
     const byPlayer = {}
     for (const r of stats) {
-      const key = r.player_id ?? `name:${r.player_name}:${r.team_abbr}`
+      const key = `${r.player_name}:${r.team_abbr}`
       if (!byPlayer[key]) byPlayer[key] = { player_name: r.player_name, team_abbr: r.team_abbr, GP: 0 }
       const p = byPlayer[key]
       p.GP += 1

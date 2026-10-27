@@ -903,6 +903,7 @@ function StatsTab() {
       }
       // 1) Poll Discord for new image messages.
       const pollJson = await callDiscord({})
+      await loadAll()
       // 2) Re-parse any pending rows that had a parse error.
       const retryJson = await callDiscord({ retry_failed: true })
       setDiscordSummary({
@@ -911,6 +912,8 @@ function StatsTab() {
         errors: pollJson.error_count ?? 0,
         retried: retryJson.retried ?? 0,
         recovered: retryJson.recovered ?? 0,
+        imported: (pollJson.imported_count ?? 0) + (retryJson.imported_count ?? 0),
+        review: retryJson.needs_review ?? pollJson.needs_review ?? 0,
       })
       const { data: pendingRows } = await supabase.from('pending_box_scores').select('*').eq('status','pending').order('posted_at', { ascending: false }).limit(40)
       setPending(pendingRows || [])
@@ -1172,61 +1175,42 @@ function StatsTab() {
       loser_score: loserScore === '' ? null : Number(loserScore),
       notes: notes || null,
     }
-    let gameId = editId
-    if (editId) {
-      const { error } = await supabase.from('games').update(gamePayload).eq('id', editId)
-      if (error) { setSaving(false); setSaveError(error.message); return }
-      // Wipe existing stat rows for this game so we can re-insert clean
-      await supabase.from('player_stats').delete().eq('game_id', editId)
-    } else {
-      const { data, error } = await supabase.from('games').insert(gamePayload).select('id').single()
-      if (error || !data) { setSaving(false); setSaveError(error?.message || 'Insert failed'); return }
-      gameId = data.id
-    }
-    // The roster table is delete-then-insert on every sync, so player_ids cached
-    // in state can go stale. Re-fetch the current roster for both teams now and
-    // null-out any player_id that no longer exists; then re-run name matching.
+    // Match names against the current roster. Stats are stored under the
+    // roster's exact player name (player_id stays empty) because the hourly
+    // Sheets sync recreates roster rows with new ids.
     const { data: freshRoster } = await supabase
       .from('roster')
       .select('id,team_abbr,player_name')
       .in('team_abbr', [winnerTeam, loserTeam])
     const freshByTeam = {}
-    const validIds = new Set()
     for (const r of freshRoster || []) {
       if (!freshByTeam[r.team_abbr]) freshByTeam[r.team_abbr] = []
       freshByTeam[r.team_abbr].push({ id: r.id, name: r.player_name })
-      validIds.add(r.id)
     }
 
-    const insertRows = []
+    const statRows = []
     for (const team of [winnerTeam, loserTeam]) {
       const teamRoster = freshByTeam[team] || rosterByTeam[team] || []
       for (const r of (statsByTeam[team] || [])) {
-        const name = r.player_name?.trim() || ''
-        if (!name && !r.player_id) continue
+        const typed = r.player_name?.trim() || ''
+        if (!typed) continue
         // Drop rows that are neither DNP nor have any stats — those are unfilled roster entries.
         if (!r.dnp && isAllZero(r)) continue
-        // Validate player_id against the freshly fetched roster, fall back to
-        // name-based matching, and finally null out if nothing matches.
-        let pid = r.player_id || null
-        if (pid && !validIds.has(pid)) pid = null
-        if (!pid || !teamRoster.some(p => p.id === pid)) pid = matchRosterId(name, teamRoster)
-        if (pid && !validIds.has(pid)) pid = null
-        const row = {
-          game_id: gameId,
-          player_id: pid,
-          team_abbr: team,
-          player_name: name,
-          dnp: !!r.dnp,
-        }
+        const pid = matchRosterId(typed, teamRoster)
+        const canonical = pid ? (teamRoster.find(p => p.id === pid)?.name || typed) : typed
+        const row = { team_abbr: team, player_name: canonical, player_id: null, dnp: !!r.dnp }
         for (const c of STAT_COLS) row[c.key] = r.dnp ? 0 : (Number(r[c.key]) || 0)
-        insertRows.push(row)
+        statRows.push(row)
       }
     }
-    if (insertRows.length) {
-      const { error } = await supabase.from('player_stats').insert(insertRows)
-      if (error) { setSaving(false); setSaveError(error.message); return }
-    }
+
+    // One call, one transaction: the game and its stat lines save together or not at all.
+    const { error } = await supabase.rpc('save_game', {
+      p_game_id: editId || null,
+      p_game: { ...gamePayload, source: 'manual' },
+      p_stats: statRows,
+    })
+    if (error) { setSaving(false); setSaveError(error.message); return }
     setSaving(false)
     await loadAll()
     resetForm()
@@ -1362,7 +1346,7 @@ function StatsTab() {
 
           <div style={{ marginTop:32 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10, gap:12, flexWrap:'wrap' }}>
-              <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:2, color:'#475569', textTransform:'uppercase' }}>Discord Pending {pending.length>0 && <span style={{ color:'#a78bfa', marginLeft:6 }}>· {pending.length}</span>}</div>
+              <div style={{ fontFamily:BC, fontWeight:900, fontSize:12, letterSpacing:2, color:'#475569', textTransform:'uppercase' }}>Needs Review {pending.length>0 && <span style={{ color:'#a78bfa', marginLeft:6 }}>· {pending.length}</span>}</div>
               <button onClick={pullDiscord} disabled={pullingDiscord} style={{ padding:'6px 14px', borderRadius:7, border:'1px solid rgba(167,139,250,0.3)', background: pullingDiscord ? 'rgba(167,139,250,0.08)' : 'transparent', color:'#a78bfa', fontFamily:BC, fontSize:11, letterSpacing:1, cursor: pullingDiscord ? 'wait' : 'pointer', display:'inline-flex', alignItems:'center', gap:6 }}>
                 <SyncIcon size={12} spinning={pullingDiscord}/>
                 <span>{pullingDiscord ? 'Pulling…' : 'Pull Discord'}</span>
@@ -1376,12 +1360,12 @@ function StatsTab() {
             )}
             {discordSummary && (
               <div style={{ fontFamily:BC, fontSize:11, letterSpacing:1, color:'#475569', textTransform:'uppercase', marginBottom:10 }}>
-                Fetched {discordSummary.fetched} · Added {discordSummary.created} · Errors {discordSummary.errors}
+                Fetched {discordSummary.fetched} · Added {discordSummary.created} · Published {discordSummary.imported} · Needs review {discordSummary.review} · Errors {discordSummary.errors}
                 {discordSummary.retried ? <span> · Retried {discordSummary.retried}, recovered {discordSummary.recovered}</span> : null}
               </div>
             )}
             {pending.length === 0 ? (
-              <div style={{ color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:11, padding:14 }}>NO PENDING DISCORD POSTS</div>
+              <div style={{ color:'#334155', fontFamily:BC, letterSpacing:2, fontSize:11, padding:14 }}>NOTHING NEEDS REVIEW — CLEAN GAMES PUBLISH AUTOMATICALLY</div>
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:24 }}>
                 {pending.map(p => (
@@ -1398,6 +1382,7 @@ function StatsTab() {
                         <span style={{ marginLeft:8, color:'#475569' }}>· {Array.isArray(p.parsed_rows)?p.parsed_rows.length:0} players</span>
                       </div>
                       {p.message_text && <div style={{ fontFamily:B, fontSize:12, color:'#475569', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', marginTop:2 }}>{p.message_text}</div>}
+                      {p.review_reason && <div style={{ fontFamily:B, fontSize:11, color:'#fbbf24', marginTop:2 }}>Needs review: {p.review_reason}</div>}
                       {p.parse_error && <div style={{ fontFamily:B, fontSize:11, color:'#fbbf24', marginTop:2 }}>parse error: {p.parse_error.slice(0,200)}</div>}
                     </div>
                     <div style={{ display:'flex', gap:6, flexShrink:0 }}>

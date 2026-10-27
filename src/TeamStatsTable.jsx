@@ -73,7 +73,7 @@ export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
   const byPlayer = {}
   for (const r of rows) {
     if (r.dnp) continue
-    const key = r.player_id ?? `name:${r.player_name}`
+    const key = r.player_name
     if (!byPlayer[key]) byPlayer[key] = { player_name: r.player_name, player_id: r.player_id, games: 0 }
     const p = byPlayer[key]
     p.games += 1
