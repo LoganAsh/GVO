@@ -235,6 +235,14 @@ export default function LeagueApp() {
   // Mobile bottom sheet: how far the sheet has been dragged down (px).
   const [sheetDrag, setSheetDrag] = useState(0);
   const dragStartRef = useRef(null);
+  // "teams" = condensed team picker (Teams tab); "full" = whole menu.
+  const [sheetMode, setSheetMode] = useState("full");
+  // Return to the full menu once the sheet has finished closing.
+  useEffect(() => {
+    if (sidebarOpen) return;
+    const t = setTimeout(() => setSheetMode("full"), 320);
+    return () => clearTimeout(t);
+  }, [sidebarOpen]);
   const [teamsExpanded, setTeamsExpanded] = useState(true);
   const [theme, setTheme] = useState(() => {
     if (typeof window === "undefined") return "dark";
@@ -392,6 +400,33 @@ export default function LeagueApp() {
     </>
   );
 
+  const teamPicker = (
+    <>
+      <div style={{padding:"4px 16px 10px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:15,letterSpacing:1,color:th.text}}>TEAMS</span>
+        <button onClick={()=>setSidebarOpen(false)} aria-label="Close team picker"
+          style={{background:"none",border:"none",color:th.closeBtn,fontSize:20,cursor:"pointer",padding:"4px 8px"}}>✕</button>
+      </div>
+      <div style={{flex:1,minHeight:0,overflowY:"auto",padding:"0 12px 16px",
+        display:"grid",gridTemplateColumns:"repeat(3, minmax(0, 1fr))",gap:8,alignContent:"start"}}>
+        {[...TEAMS].sort((a,b)=>FULL[a].split(" ").slice(-1)[0].localeCompare(FULL[b].split(" ").slice(-1)[0])).map(t=>{
+          const active = t===sel && page==="team";
+          return (
+            <button key={t} onClick={()=>pick(t)} aria-current={active?"page":undefined}
+              style={{display:"flex",alignItems:"center",gap:8,padding:"8px",borderRadius:10,cursor:"pointer",minWidth:0,
+                background:active?"rgba(249,115,22,0.12)":th.surfaceAlt,
+                border:`1px solid ${active?"#f97316":th.border}`,textAlign:"left"}}>
+              <div style={{width:26,height:26,borderRadius:7,background:CLR[t]||"#555",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",
+                fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:10,color:"#fff"}}>{t}</div>
+              <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:13,color:active?"#f97316":th.text,
+                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{FULL[t].split(" ").slice(-1)[0]}</span>
+            </button>
+          );
+        })}
+      </div>
+    </>
+  );
+
   const drawer = (
     <>
       <div onClick={()=>setSidebarOpen(false)} aria-hidden="true"
@@ -413,6 +448,7 @@ export default function LeagueApp() {
           onTouchEnd={()=>{if(sheetDrag>80) setSidebarOpen(false); setSheetDrag(0); dragStartRef.current=null;}}>
           <span style={{background:th.border}}/>
         </div>
+        {sheetMode === "teams" ? teamPicker : <>
         <div style={{padding:"14px",borderBottom:`1px solid ${th.borderSoft}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
           <button onClick={()=>{setPage("landing");setSidebarOpen(false);}}
             aria-label="Back to home"
@@ -479,19 +515,20 @@ export default function LeagueApp() {
             <span>Admin Sign-In</span>
           </a>
         </div>
+        </>}
       </div>
     </>
   );
 
-  const activeTab = sidebarOpen ? (teamsExpanded ? "teams" : "more")
+  const activeTab = sidebarOpen ? (sheetMode === "teams" ? "teams" : "more")
     : page === "team" ? "teams"
     : page === "draft" ? "draft"
     : page === "trade_machine" ? "trades"
     : "home";
   const onNavigate = (key) => {
-    if (key === "more") { setTeamsExpanded(false); setSidebarOpen(true); return; }
-    // Teams always opens the menu with the team list showing; picking a team navigates.
-    if (key === "teams") { setTeamsExpanded(true); setSidebarOpen(true); return; }
+    if (key === "more") { setSheetMode("full"); setTeamsExpanded(false); setSidebarOpen(true); return; }
+    // Teams opens the condensed team picker; picking a team navigates.
+    if (key === "teams") { setSheetMode("teams"); setSidebarOpen(true); return; }
     setSidebarOpen(false);
     setPage({ home: "landing", draft: "draft", trades: "trade_machine" }[key]);
   };
