@@ -176,15 +176,6 @@ function candidatesFor(typed: string, team: string, ctx: Ctx): string[] {
   return roster.filter(p => p.n.last === n.last && (!n.first || !p.n.first || n.first[0] === p.n.first[0])).map(p => p.name);
 }
 
-function bestTeamFor(rows: Row[], ctx: Ctx) {
-  let best = { team: "", hits: 0 };
-  for (const team of Object.keys(ctx.rosters)) {
-    const hits = rows.filter(r => candidatesFor(r.player_name, team, ctx).length > 0).length;
-    if (hits > best.hits) best = { team, hits };
-  }
-  return best;
-}
-
 // Map every row to exactly one roster name, or return the names that failed.
 function resolveRows(rows: Row[], team: string, ctx: Ctx): { names: string[] | null; unresolved: string[] } {
   const names: (string | null)[] = rows.map(r => {
@@ -240,42 +231,46 @@ async function tryImport(db: SupabaseClient, ctx: Ctx, messageId: string): Promi
   };
   if (imgs.length !== 2) return flagImgs(`Expected 2 box score images in the post, found ${imgs.length}.`);
 
-  // Which team is each image? Decided by roster names, not by image order.
+  // Teams and score come from the recap text. Each image's player points must
+  // equal one side of the score exactly; roster names then decide which recap
+  // team goes with which image.
+  const info = parseGameInfo(rows[0].message_text || "");
+  const textTeams = info?.teams || [];
+  if (textTeams.length < 2) return flagImgs("Recap text doesn't name two teams.");
+  if (info?.high == null || info.low == null) return flagImgs("Recap text has no final score.");
   const sides = imgs.map(img => {
     const parsed = img.parsed_rows as Row[];
-    const best = bestTeamFor(parsed, ctx);
-    return { img, rows: parsed, team: best.team, hits: best.hits, sum: parsed.reduce((s, r) => s + r.pts, 0) };
+    return { img, rows: parsed, team: "", sum: parsed.reduce((t, r) => t + r.pts, 0) };
   });
-  for (const s of sides) {
-    if (!s.team || s.hits < Math.ceil(s.rows.length * 0.6)) {
-      return flagImgs(`Couldn't tell which team an image belongs to (best match ${s.team || "none"}, ${s.hits}/${s.rows.length} names).`);
-    }
+  const win = sides.find(x => x.sum === info.high);
+  const lose = sides.find(x => x !== win && x.sum === info.low);
+  if (!win || !lose) {
+    return flagImgs(`Player points (${sides[0].sum} and ${sides[1].sum}) don't match the recap score ${info.high}-${info.low}.`);
   }
-  if (sides[0].team === sides[1].team) return flagImgs(`Both images matched ${sides[0].team}.`);
-
-  const info = parseGameInfo(rows[0].message_text || "");
-  const textTeams = new Set(info?.teams || []);
-  if (!sides.every(s => textTeams.has(s.team))) {
-    return flagImgs(`Recap text doesn't name both teams found in the images (${sides[0].team}, ${sides[1].team}).`);
+  const hits = (rs: Row[], team: string) => rs.filter(r => candidatesFor(r.player_name, team, ctx).length > 0).length;
+  let best = { w: "", l: "", score: -1 };
+  for (const w of textTeams) for (const l of textTeams) {
+    if (w === l) continue;
+    // Small bonus for the usual recap order (winner named first) to break ties.
+    const score = hits(win.rows, w) + hits(lose.rows, l) + (w === textTeams[0] ? 0.5 : 0);
+    if (score > best.score) best = { w, l, score };
   }
-  if (info?.high == null) return flagImgs("Recap text has no final score.");
-  if (sides[0].sum === sides[1].sum) return flagImgs("Both images total the same points.");
-  const [win, lose] = sides[0].sum > sides[1].sum ? [sides[0], sides[1]] : [sides[1], sides[0]];
-  if (win.sum !== info.high || lose.sum !== info.low) {
-    return flagImgs(`Player points (${win.team} ${win.sum}, ${lose.team} ${lose.sum}) don't match the recap score ${info.high}-${info.low}.`);
-  }
+  win.team = best.w; lose.team = best.l;
 
   const problems: string[] = [];
-  for (const s of sides) for (const r of s.rows) {
+  for (const s of [win, lose]) for (const r of s.rows) {
     const p = rowProblems(r);
     if (p.length) problems.push(`${s.team} ${r.player_name}: ${p.join(", ")}`);
   }
   if (problems.length) return flagImgs(`Stat lines that don't add up: ${problems.slice(0, 4).join("; ")}${problems.length > 4 ? "…" : ""}`);
 
+  const resolved = [win, lose].map(x => ({ side: x, res: resolveRows(x.rows, x.team, ctx) }));
+  const missing = resolved.filter(x => !x.res.names).map(x => `${x.side.team}: ${x.res.unresolved.join(", ")}`);
+  if (missing.length) {
+    return flagImgs(`Not on the roster — ${missing.join(" | ")}. Fix the Sheet or add an alias; it re-checks automatically.`);
+  }
   const stats: any[] = [];
-  for (const s of sides) {
-    const res = resolveRows(s.rows, s.team, ctx);
-    if (!res.names) return flagImgs(`No roster match on ${s.team} for: ${res.unresolved.join(", ")}. Add an alias or fix the roster.`);
+  for (const { side: s, res } of resolved) {
     s.rows.forEach((r, i) => {
       const allZero = INT_FIELDS.every(f => !r[f]);
       stats.push({ ...r, team_abbr: s.team, player_name: res.names![i], player_id: null, dnp: allZero });
