@@ -483,19 +483,15 @@ export default function LeagueApp() {
     </>
   );
 
-  const activeTab = sidebarOpen ? "more"
+  const activeTab = sidebarOpen ? (teamsExpanded ? "teams" : "more")
     : page === "team" ? "teams"
     : page === "draft" ? "draft"
     : page === "trade_machine" ? "trades"
     : "home";
   const onNavigate = (key) => {
     if (key === "more") { setTeamsExpanded(false); setSidebarOpen(true); return; }
-    // Tapping Teams while already on a team opens the team switcher.
-    if (key === "teams") {
-      if (page === "team") { setTeamsExpanded(true); setSidebarOpen(true); }
-      else { setPage("team"); setSidebarOpen(false); }
-      return;
-    }
+    // Teams always opens the menu with the team list showing; picking a team navigates.
+    if (key === "teams") { setTeamsExpanded(true); setSidebarOpen(true); return; }
     setSidebarOpen(false);
     setPage({ home: "landing", draft: "draft", trades: "trade_machine" }[key]);
   };
