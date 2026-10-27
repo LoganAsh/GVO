@@ -56,6 +56,17 @@ function parseSalaryLabel(v: string): string | null {
   return t;
 }
 
+// Lowercased letters only, for comparing names across the two roster blocks.
+const nameKey = (v: string) => (v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z]/g, "");
+function editDistance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  }
+  return d[a.length][b.length];
+}
+
 // "2027-2028" -> "2026-2027"
 function previousSeason(label: string): string {
   const m = label.match(/^(\d{4})\s*-\s*(\d{2,4})$/);
@@ -109,7 +120,7 @@ function parseTeam(rows: string[][]) {
       salary_yr1_label: labels[0], salary_yr2_label: labels[1], salary_yr3_label: labels[2],
       salary_yr4_label: labels[3], salary_yr5_label: labels[4],
       option_type: parseOptionType(cell(r, COL.option)),
-      two_way: false,
+      two_way: /^two[\s-]?way$/i.test(labels[0] || ""),
     });
   }
 
@@ -132,6 +143,14 @@ function parseTeam(rows: string[][]) {
         option_type: null, two_way: true,
       });
     }
+  }
+
+  const blockNames = roster.filter(r => r.two_way && r.salary_yr1_label === "Two-Way").map(r => nameKey(r.player_name));
+  for (let i = roster.length - 1; i >= 0; i--) {
+    const r = roster[i];
+    if (!r.two_way || r.salary_yr1_label === "Two-Way") continue;
+    const k = nameKey(r.player_name);
+    if (blockNames.some(b => b === k || (k.length >= 6 && editDistance(b, k) <= 1))) roster.splice(i, 1);
   }
 
   // Draft picks: wherever the "Draft Picks" label is, years are below it in
