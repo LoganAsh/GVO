@@ -982,6 +982,28 @@ function StatsTab() {
     })
   }
 
+  // Publish a game that only failed the roster check. Unmatched players are
+  // saved under the name shown in the box score; every other check still applies.
+  const publishAnyway = async (pendingRow) => {
+    if (!window.confirm('Publish this game with the unmatched players under their box score names?')) return
+    setDiscordError(null)
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData?.session?.access_token
+      if (!token) throw new Error('No active admin session.')
+      const res = await fetch(DISCORD_SYNC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json', Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ retry_failed: true, force_message_id: pendingRow.discord_message_id }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json?.error || `HTTP ${res.status}`)
+      await loadAll()
+    } catch (e) {
+      setDiscordError(e.message || String(e))
+    }
+  }
+
   const rejectPending = async (pendingRow) => {
     if (!window.confirm('Discard this pending box score?')) return
     await supabase.from('pending_box_scores').update({ status: 'rejected' }).eq('id', pendingRow.id)
@@ -1388,6 +1410,9 @@ function StatsTab() {
                     <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                       <button onClick={()=>importPendingTo('winner', p)} disabled={!Array.isArray(p.parsed_rows) || !p.parsed_rows.length} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(96,165,250,0.3)', background:'transparent', color:'#60a5fa', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Use as Winner</button>
                       <button onClick={()=>importPendingTo('loser', p)} disabled={!Array.isArray(p.parsed_rows) || !p.parsed_rows.length} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(96,165,250,0.3)', background:'transparent', color:'#60a5fa', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Use as Loser</button>
+                      {p.review_reason?.startsWith('Not on the roster') && (
+                        <button onClick={()=>publishAnyway(p)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(52,211,153,0.3)', background:'transparent', color:'#34d399', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Publish anyway</button>
+                      )}
                       <button onClick={()=>rejectPending(p)} style={{ padding:'4px 10px', borderRadius:6, border:'1px solid rgba(239,68,68,0.2)', background:'transparent', color:'#f87171', fontFamily:BC, fontSize:11, cursor:'pointer' }}>Discard</button>
                     </div>
                   </div>

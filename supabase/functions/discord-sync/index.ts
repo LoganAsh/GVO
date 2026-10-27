@@ -165,6 +165,20 @@ async function readWithFallback(apiKey: string, bytes: Uint8Array) {
 type RosterP = { name: string; n: NonNullable<ReturnType<typeof normalizeName>> };
 type Ctx = { rosters: Record<string, RosterP[]>; aliases: { team: string | null; key: string; roster_name: string }[] };
 
+// Edit distance between two short strings (used for one-letter typos).
+function editDistance(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+    d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  }
+  return d[a.length][b.length];
+}
+
+// The box score reader often turns a "G." initial into "Q.".
+const initialsMatch = (a: string, b: string) =>
+  !a || !b || a[0] === b[0] || [a[0], b[0]].sort().join("") === "gq";
+
 function candidatesFor(typed: string, team: string, ctx: Ctx): string[] {
   const n = normalizeName(typed);
   if (!n) return [];
@@ -173,7 +187,14 @@ function candidatesFor(typed: string, team: string, ctx: Ctx): string[] {
   if (alias) return roster.some(p => p.name === alias.roster_name) ? [alias.roster_name] : [];
   const exact = roster.filter(p => p.n.key === n.key);
   if (exact.length) return exact.map(p => p.name);
-  return roster.filter(p => p.n.last === n.last && (!n.first || !p.n.first || n.first[0] === p.n.first[0])).map(p => p.name);
+  const strict = roster.filter(p => p.n.last === n.last && (!n.first || !p.n.first || n.first[0] === p.n.first[0]));
+  if (strict.length) return strict.map(p => p.name);
+  // Tolerant pass, accepted only when exactly one player on the team fits:
+  // G/Q initial mix-up, or a one-letter difference in a last name of 5+ letters.
+  const loose = roster.filter(p =>
+    initialsMatch(n.first, p.n.first) &&
+    (p.n.last === n.last || (n.last.length >= 5 && editDistance(p.n.last, n.last) <= 1)));
+  return loose.length === 1 ? [loose[0].name] : [];
 }
 
 // Map every row to exactly one roster name, or return the names that failed.
@@ -200,7 +221,7 @@ function resolveRows(rows: Row[], team: string, ctx: Ctx): { names: string[] | n
 const denverDate = (iso: string | null) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "America/Denver" }).format(iso ? new Date(iso) : new Date());
 
-async function tryImport(db: SupabaseClient, ctx: Ctx, messageId: string): Promise<"imported" | "review" | "skip"> {
+async function tryImport(db: SupabaseClient, ctx: Ctx, messageId: string, force = false): Promise<"imported" | "review" | "skip"> {
   const { data: rows } = await db.from("pending_box_scores").select("*")
     .eq("discord_message_id", messageId).eq("status", "pending").order("id");
   if (!rows?.length) return "skip";
@@ -266,7 +287,17 @@ async function tryImport(db: SupabaseClient, ctx: Ctx, messageId: string): Promi
 
   const resolved = [win, lose].map(x => ({ side: x, res: resolveRows(x.rows, x.team, ctx) }));
   const missing = resolved.filter(x => !x.res.names).map(x => `${x.side.team}: ${x.res.unresolved.join(", ")}`);
-  if (missing.length) {
+  if (missing.length && force) {
+    // Admin chose to publish anyway: matched players get their roster name,
+    // unmatched ones are saved under the name shown in the box score.
+    for (const x of resolved) {
+      if (x.res.names) continue;
+      x.res.names = x.side.rows.map(r => {
+        const c = candidatesFor(r.player_name, x.side.team, ctx);
+        return c.length === 1 ? c[0] : r.player_name;
+      });
+    }
+  } else if (missing.length) {
     return flagImgs(`Not on the roster — ${missing.join(" | ")}. Fix the Sheet or add an alias; it re-checks automatically.`);
   }
   const stats: any[] = [];
@@ -442,8 +473,10 @@ Deno.serve(async (req) => {
   //    now let it through) and publish what passes.
   const { data: queued } = await db.from("pending_box_scores").select("discord_message_id").eq("status", "pending");
   for (const q of queued || []) touched.add(q.discord_message_id);
+  const forceId: string | null = body?.force_message_id ? String(body.force_message_id) : null;
+  if (forceId) touched.add(forceId);
   for (const id of touched) {
-    const result = await tryImport(db, ctx, id);
+    const result = await tryImport(db, ctx, id, id === forceId);
     if (result === "imported") summary.imported_count++;
     if (result === "review") summary.needs_review++;
   }
