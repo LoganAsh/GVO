@@ -408,7 +408,10 @@ export default function LeagueApp() {
           style={{background:"none",border:"none",color:th.closeBtn,fontSize:20,cursor:"pointer",padding:"4px 8px"}}>✕</button>
       </div>
       <div style={{flex:1,minHeight:0,overflowY:"auto",padding:"0 12px 16px",
-        display:"grid",gridTemplateColumns:"repeat(3, minmax(0, 1fr))",gap:8,alignContent:"start"}}>
+        display:"grid",gridTemplateColumns:"repeat(3, minmax(0, 1fr))",
+        // Fill top-to-bottom, then the next column: ATL, BKN, BOS… run down the first column.
+        gridTemplateRows:`repeat(${Math.ceil(TEAMS.length / 3)}, auto)`,gridAutoFlow:"column",
+        gap:8,alignContent:"start"}}>
         {[...TEAMS].sort().map(t=>{
           const active = t===sel && page==="team";
           return (
