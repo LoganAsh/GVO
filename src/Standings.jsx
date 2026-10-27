@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { getCurrentSeason, fetchAll } from './season'
 import { getTheme } from './theme'
 import { TeamLogo } from './teamLogos'
 
@@ -17,12 +18,17 @@ export default function Standings({ theme = 'dark', onTeamClick }) {
   useEffect(() => { load() }, [])
 
   const load = async () => {
-    const { data } = await supabase
+    // Current season, regular season only; past seasons stay archived.
+    const season = await getCurrentSeason()
+    const data = season ? await fetchAll(() => supabase
       .from('games')
       .select('winner_team,loser_team,winner_score,loser_score')
+      .eq('season_id', season.id)
+      .eq('phase', 'regular')
       .not('winner_team', 'is', null)
       .not('loser_team', 'is', null)
-    setGames(data || [])
+      .order('id')) : []
+    setGames(data)
     setLoading(false)
   }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { getCurrentSeason, fetchAll } from './season'
 import { getTheme } from './theme'
 import { BarChartIcon } from './Icons'
 
@@ -42,11 +43,14 @@ export default function TeamStatsTable({ teamAbbr, theme = "dark" }) {
 
   const load = async () => {
     setLoading(true)
-    const { data: stats } = await supabase
+    const season = await getCurrentSeason()
+    const stats = season ? await fetchAll(() => supabase
       .from('player_stats')
       .select('*')
       .eq('team_abbr', teamAbbr)
-      .order('id', { ascending: false })
+      .eq('season_id', season.id)
+      .eq('phase', 'regular')
+      .order('id', { ascending: false })) : []
     const gameIds = Array.from(new Set((stats || []).map(s => s.game_id).filter(Boolean)))
     let gameMap = {}
     if (gameIds.length) {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
+import { getCurrentSeason, fetchAll } from './season'
 import { getTheme } from './theme'
 import { TeamLogo } from './teamLogos'
 
@@ -29,8 +30,11 @@ export default function Leaderboard({ theme = 'dark' }) {
   useEffect(() => { load() }, [])
 
   const load = async () => {
-    const { data } = await supabase.from('player_stats').select('*').eq('dnp', false)
-    setStats(data || [])
+    // Current season, regular season only; past seasons stay archived.
+    const season = await getCurrentSeason()
+    const data = season ? await fetchAll(() => supabase.from('player_stats').select('*')
+      .eq('season_id', season.id).eq('phase', 'regular').eq('dnp', false).order('id')) : []
+    setStats(data)
     setLoading(false)
   }
 
