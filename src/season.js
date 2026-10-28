@@ -22,3 +22,13 @@ export async function fetchAll(buildQuery, pageSize = 1000) {
   }
   return out
 }
+
+// The draft year the Draft Board is running (draft_settings.draft_year).
+let draftYearPromise = null
+export function getDraftYear() {
+  if (!draftYearPromise) {
+    draftYearPromise = supabase.from('draft_settings').select('draft_year').eq('id', 1).maybeSingle()
+      .then(({ data }) => data?.draft_year || null)
+  }
+  return draftYearPromise
+}

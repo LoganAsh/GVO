@@ -53,9 +53,10 @@ export default function DraftPage({ theme = 'dark' }) {
     let cancelled = false
     async function load(initial) {
       if (initial) setLoading(true)
-      const [picksRes, settingsRes, prospectsRes] = await Promise.all([
-        supabase.from('draft_2026').select('*').order('pick_number'),
-        supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
+      const settingsRes = await supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle()
+      const year = settingsRes.data?.draft_year
+      const [picksRes, prospectsRes] = await Promise.all([
+        supabase.from('draft_results').select('*').eq('draft_year', year ?? -1).order('pick_number'),
         supabase.from('prospects').select('*').order('rank'),
       ])
       if (cancelled) return

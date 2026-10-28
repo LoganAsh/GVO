@@ -514,9 +514,10 @@ function DraftTab() {
 
   const load = async () => {
     setLoading(true)
-    const [picksRes, settingsRes, prospectsRes] = await Promise.all([
-      supabase.from('draft_2026').select('*').order('pick_number'),
-      supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
+    const settingsRes = await supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle()
+    const year = settingsRes.data?.draft_year
+    const [picksRes, prospectsRes] = await Promise.all([
+      supabase.from('draft_results').select('*').eq('draft_year', year ?? -1).order('pick_number'),
       supabase.from('prospects').select('*').order('rank'),
     ])
     setPicks(picksRes.data || [])
@@ -573,6 +574,7 @@ function DraftTab() {
   const handleSave = async () => {
     setSaving(true); setSaveError(null)
     const payload = {
+      draft_year: settings?.draft_year,
       pick_number: Number(form.pick_number),
       owns_team: form.owns_team,
       original_team: form.original_team,
@@ -585,8 +587,8 @@ function DraftTab() {
       setSaving(false); setSaveError('Pick # is required'); return
     }
     const { error } = editId
-      ? await supabase.from('draft_2026').update(payload).eq('id', editId)
-      : await supabase.from('draft_2026').insert(payload)
+      ? await supabase.from('draft_results').update(payload).eq('id', editId)
+      : await supabase.from('draft_results').insert(payload)
     setSaving(false)
     if (error) { setSaveError(error.message || String(error)); return }
     setShowForm(false); load()
@@ -594,7 +596,7 @@ function DraftTab() {
 
   const handleDelete = async id => {
     if (!window.confirm('Delete this pick?')) return
-    await supabase.from('draft_2026').delete().eq('id', id)
+    await supabase.from('draft_results').delete().eq('id', id)
     load()
   }
 
@@ -653,7 +655,7 @@ function DraftTab() {
   }
 
   if (loading) return (
-    <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><TargetIcon size={16}/> 2026 Draft</span>}>
+    <Card title={<span style={{display:'inline-flex',alignItems:'center',gap:8}}><TargetIcon size={16}/> {settings?.draft_year || ''} Draft</span>}>
       <div style={{ color:'#475569', fontFamily:BC, letterSpacing:2, fontSize:12, padding:24, textAlign:'center' }}>LOADING…</div>
     </Card>
   )

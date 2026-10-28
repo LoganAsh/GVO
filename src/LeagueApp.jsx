@@ -9,8 +9,9 @@ import LeagueStats from "./LeagueStats";
 import DiscordFeedPage from "./DiscordFeedPage";
 import DraftPage from "./DraftPage";
 import TradeMachine from "./TradeMachine";
+import ArchivePage from "./ArchivePage";
 import BottomNav from "./BottomNav";
-import { getCurrentSeason } from "./season";
+import { getCurrentSeason, getDraftYear } from "./season";
 import { getTheme } from "./theme";
 import { BasketballIcon, ClipboardIcon, TargetIcon, BarChartIcon, HamburgerIcon } from "./Icons";
 
@@ -260,6 +261,8 @@ export default function LeagueApp() {
   const th = getTheme(theme);
   // Current season's label ("GVO 26-27") from the seasons table.
   const [seasonLabel, setSeasonLabel] = useState("GVO");
+  const [draftYear, setDraftYear] = useState(null);
+  useEffect(() => { getDraftYear().then(y => { if (y) setDraftYear(y); }); }, []);
   useEffect(() => {
     getCurrentSeason().then(s => {
       if (!s?.label) return;
@@ -500,6 +503,11 @@ export default function LeagueApp() {
             style={{display:"flex",alignItems:"center",justifyContent:"flex-start",gap:8,padding:"10px 14px",background:page==="trade_machine"?"rgba(249,115,22,0.12)":"none",borderLeft:page==="trade_machine"?"2px solid #f97316":"2px solid transparent",border:"none",borderBottom:`1px solid ${th.borderSoft}`,color:page==="trade_machine"?th.text:th.textMuted,cursor:"pointer",textAlign:"left",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
             <BarChartIcon size={13}/><span>Trade Machine</span>
           </button>
+          <button onClick={()=>{setPage("archive");setSidebarOpen(false);}}
+            style={{display:"flex",alignItems:"center",justifyContent:"flex-start",gap:8,padding:"10px 14px",background:page==="archive"?"rgba(249,115,22,0.12)":"none",borderLeft:page==="archive"?"2px solid #f97316":"2px solid transparent",border:"none",borderBottom:`1px solid ${th.borderSoft}`,color:page==="archive"?th.text:th.textMuted,cursor:"pointer",textAlign:"left",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M10 13h4"/></svg>
+            <span>Archive</span>
+          </button>
           <a href="https://cbaguide.com/" target="_blank" rel="noopener noreferrer"
             style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"10px 14px",background:"none",borderLeft:"2px solid transparent",border:"none",borderBottom:`1px solid ${th.borderSoft}`,color:th.textMuted,cursor:"pointer",textAlign:"left",textDecoration:"none",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
             <span style={{display:"inline-flex",alignItems:"center",gap:8}}>
@@ -541,6 +549,7 @@ export default function LeagueApp() {
     : page === "team" ? "teams"
     : page === "draft" ? "draft"
     : page === "trade_machine" ? "trades"
+    : page === "archive" ? "more"
     : "home";
   const onNavigate = (key) => {
     if (key === "more") { setSheetMode("full"); setTeamsExpanded(false); setSidebarOpen(true); return; }
@@ -596,6 +605,51 @@ export default function LeagueApp() {
     );
   }
 
+  // ── Archive ──────────────────────────────────────────────
+  if (page === "archive") {
+    return (
+      <div style={{minHeight:"100vh",background:th.bgGradient,display:"flex",flexDirection:"column"}}>
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=Barlow:wght@400;500;600&display=swap');
+          *{box-sizing:border-box;margin:0;padding:0}
+          body{background:${th.bg};color:${th.text};font-family:'Barlow',sans-serif}
+          ::-webkit-scrollbar{width:5px;height:5px}
+          ::-webkit-scrollbar-track{background:transparent}
+          ::-webkit-scrollbar-thumb{background:${th.border};border-radius:99px}
+        `}</style>
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"14px 20px",borderBottom:`1px solid ${th.borderSoft}`,flexShrink:0}}>
+          <button className="gvo-hamburger" aria-label="Open teams menu" aria-expanded={sidebarOpen} onClick={()=>setSidebarOpen(true)}
+            style={{background:th.surfaceAlt,border:`1px solid ${th.border}`,borderRadius:8,padding:"9px 11px",color:th.text,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
+            <HamburgerIcon size={16}/>
+          </button>
+          <button onClick={()=>setPage("landing")} aria-label="Back to home"
+            style={{display:"flex",alignItems:"center",gap:8,background:"none",border:"none",cursor:"pointer",padding:"4px 6px"}}>
+            <div style={{width:30,height:30,borderRadius:7,background:"linear-gradient(135deg,#f97316,#ef4444)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}><BasketballIcon size={16}/></div>
+            <span style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:13,letterSpacing:1,color:th.text}}>GVO SIM LEAGUE</span>
+          </button>
+          <div className="gvo-desktop-only" style={{marginLeft:"auto"}}>
+            <button onClick={()=>setPage("landing")}
+              style={{background:"none",border:`1px solid ${th.border}`,borderRadius:7,padding:"6px 12px",color:th.textMuted,cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:11,letterSpacing:2,textTransform:"uppercase"}}>
+              ← Home
+            </button>
+          </div>
+        </div>
+        <div style={{flex:1,maxWidth:900,width:"100%",margin:"0 auto",padding:"24px 20px 32px"}}>
+          <div style={{marginBottom:18}}>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:4}}>Past Seasons</div>
+            <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(24px,5vw,38px)",lineHeight:1,color:th.text}}>Archive</h1>
+          </div>
+          <ArchivePage theme={theme}/>
+        </div>
+        <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"10px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>
+          {seasonLabel} · OVR from 2KRatings.com · Syncs hourly
+        </div>
+        {drawer}
+        {bottomNav}
+      </div>
+    );
+  }
+
   // ── Draft Page ─────────────────────────────────────────────────
   if (page === "draft") {
     return (
@@ -627,7 +681,7 @@ export default function LeagueApp() {
         </div>
         <div style={{flex:1,maxWidth:1100,width:"100%",margin:"0 auto",padding:"24px 20px 32px"}}>
           <div style={{marginBottom:18}}>
-            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:4}}>2026 NBA Draft</div>
+            <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:4}}>{draftYear ? `${draftYear} NBA Draft` : "NBA Draft"}</div>
             <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(24px,5vw,38px)",lineHeight:1,color:th.text}}>Draft Board</h1>
           </div>
           <DraftPage theme={theme}/>
