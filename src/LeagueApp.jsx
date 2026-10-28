@@ -10,6 +10,7 @@ import DiscordFeedPage from "./DiscordFeedPage";
 import DraftPage from "./DraftPage";
 import TradeMachine from "./TradeMachine";
 import BottomNav from "./BottomNav";
+import { getCurrentSeason } from "./season";
 import { getTheme } from "./theme";
 import { BasketballIcon, ClipboardIcon, TargetIcon, BarChartIcon, HamburgerIcon } from "./Icons";
 
@@ -257,6 +258,15 @@ export default function LeagueApp() {
   }, [theme]);
 
   const th = getTheme(theme);
+  // Current season's label ("GVO 26-27") from the seasons table.
+  const [seasonLabel, setSeasonLabel] = useState("GVO");
+  useEffect(() => {
+    getCurrentSeason().then(s => {
+      if (!s?.label) return;
+      setSeasonLabel(s.label);
+      document.title = `${s.label} Sim League`;
+    });
+  }, []);
   useEffect(() => { window.scrollTo(0, 0); }, [page, sel]);
   const drawerRef = useRef(null);
   const lastFocusRef = useRef(null);
@@ -578,7 +588,7 @@ export default function LeagueApp() {
           <TradeMachine theme={theme}/>
         </div>
         <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"10px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>
-          GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
+          {seasonLabel} · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
         {bottomNav}
@@ -623,7 +633,7 @@ export default function LeagueApp() {
           <DraftPage theme={theme}/>
         </div>
         <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"10px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>
-          GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
+          {seasonLabel} · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
         {bottomNav}
@@ -669,7 +679,7 @@ export default function LeagueApp() {
           <DiscordFeedPage channel={channel} theme={theme}/>
         </div>
         <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"10px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>
-          GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
+          {seasonLabel} · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
         {bottomNav}
@@ -699,8 +709,8 @@ export default function LeagueApp() {
         </div>
         {/* Compact hero */}
         <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"28px 20px 12px",textAlign:"center"}}>
-          <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:54,height:54,borderRadius:14,background:"linear-gradient(135deg,#f97316,#ef4444)",color:"#fff",marginBottom:14,boxShadow:"0 0 40px rgba(249,115,22,0.25)"}}><BasketballIcon size={28}/></div>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:th.textSubtle,textTransform:"uppercase",marginBottom:4}}>GVO 25-26 Season</div>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:40,lineHeight:1,letterSpacing:2,color:"#f97316",marginBottom:10}}>GVO</div>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:th.textSubtle,textTransform:"uppercase",marginBottom:4}}>{seasonLabel} Season</div>
           <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(26px,5vw,44px)",lineHeight:1,marginBottom:4,color:th.text}}>SIM LEAGUE</h1>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:4,color:th.textSubtle,textTransform:"uppercase",marginBottom:18}}>Front Office Dashboard</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:10,justifyContent:"center"}}>
@@ -730,7 +740,7 @@ export default function LeagueApp() {
         </div>
         {/* Footer */}
         <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"10px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>
-          GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
+          {seasonLabel} · OVR from 2KRatings.com · Syncs hourly
         </div>
         {drawer}
         {bottomNav}
@@ -802,7 +812,7 @@ export default function LeagueApp() {
           </div>
 
           <div style={{borderTop:`1px solid ${th.borderSoft}`,padding:"12px 20px",textAlign:"center",color:th.textVeryMuted,fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase"}}>
-            GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
+            {seasonLabel} · OVR from 2KRatings.com · Syncs hourly
           </div>
         </div>
       </div>

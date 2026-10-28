@@ -1,15 +1,26 @@
 // CBA constants and helpers for the trade machine.
-// Values match the rest of the app's 2025-26 cap year.
+// Cap lines default to the 2026-27 figures in the league Sheet and are
+// refreshed from team_cap (synced hourly) by setCapLines().
 
 export const CAP = {
-  cap:    154_647_000,  // Salary cap
-  tax:    187_900_000,  // Luxury tax line
-  apron1: 195_900_000,  // 1st apron
-  apron2: 207_800_000,  // 2nd apron
+  cap:    165_000_000,  // Salary cap
+  tax:    201_000_000,  // Luxury tax line
+  apron1: 209_000_000,  // 1st apron
+  apron2: 222_000_000,  // 2nd apron
+}
+
+// Update the cap lines from team_cap rows ({ label, value }).
+export function setCapLines(rows) {
+  const by = {}
+  for (const r of rows || []) if (r?.label && r.value != null) by[r.label] = Number(r.value)
+  if (by['Salary Cap']) CAP.cap = by['Salary Cap']
+  if (by['Luxury Tax']) CAP.tax = by['Luxury Tax']
+  if (by['1st Apron']) CAP.apron1 = by['1st Apron']
+  if (by['2nd Apron']) CAP.apron2 = by['2nd Apron']
 }
 
 // Salary-matching thresholds for over-the-cap teams below the 1st apron.
-// (2025-26 estimated; sim league uses these as a fixed reference.)
+// (Fixed reference values carried over from the previous season.)
 const TIER1_MAX =  7_944_000  // ≤ this → max incoming = 200% + 250K
 const TIER2_MAX = 31_776_000  // ≤ this → max incoming = outgoing + 7.94M
                               //  > TIER2_MAX → max incoming = 125% + 250K

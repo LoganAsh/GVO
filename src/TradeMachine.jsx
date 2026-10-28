@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 import { getTheme } from './theme'
-import { capStatus, fmtMoney, payrollFromRoster, evaluateTradeLeg } from './cap'
+import { capStatus, fmtMoney, payrollFromRoster, evaluateTradeLeg, setCapLines } from './cap'
 
 const BC = "'Barlow Condensed', sans-serif"
 const B  = "'Barlow', sans-serif"
@@ -329,12 +329,14 @@ export default function TradeMachine({ theme = 'dark' }) {
     let cancelled = false
     async function load() {
       setLoading(true)
-      const [rosterRes, picksRes, settingsRes] = await Promise.all([
+      const [rosterRes, picksRes, settingsRes, capRes] = await Promise.all([
         supabase.from('roster').select('id,team_abbr,player_name,position,ovr,salary_yr1,option_type').order('id'),
         supabase.from('draft_picks').select('id,team_abbr,year,round,pick_type,owned_by,original_team,from_team,notes').order('year').order('round'),
         supabase.from('draft_settings').select('*').eq('id', 1).maybeSingle(),
+        supabase.from('team_cap').select('label,value').neq('label', 'Cap Space').limit(10),
       ])
       if (cancelled) return
+      setCapLines(capRes.data)
       const rosterByTeam = {}
       for (const row of rosterRes.data || []) {
         if (!row.team_abbr || !row.player_name) continue

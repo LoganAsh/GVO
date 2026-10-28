@@ -204,7 +204,7 @@ export default function App() {
         {/* Hero */}
         <div style={{textAlign:"center",padding:"52px 20px 36px"}}>
           <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:60,height:60,borderRadius:14,background:"linear-gradient(135deg,#f97316,#ef4444)",fontSize:30,marginBottom:18,boxShadow:"0 0 40px rgba(249,115,22,0.3)"}}>🏀</div>
-          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:"#475569",textTransform:"uppercase",marginBottom:6}}>GVO 25-26 Season</div>
+          <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:10,letterSpacing:5,color:"#475569",textTransform:"uppercase",marginBottom:6}}>GVO 26-27 Season</div>
           <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontWeight:900,fontSize:"clamp(32px,8vw,68px)",lineHeight:1,marginBottom:6,background:"linear-gradient(135deg,#f1f5f9,#94a3b8)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>SIM LEAGUE</h1>
           <div style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:11,letterSpacing:4,color:"#475569",textTransform:"uppercase",marginBottom:36}}>Front Office Dashboard</div>
           {/* Stats strip */}
@@ -271,7 +271,7 @@ export default function App() {
           })}
         </div>
         <div style={{borderTop:"1px solid rgba(255,255,255,0.04)",padding:"12px 20px",textAlign:"center",color:"#1e293b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase"}}>
-          GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
+          GVO 26-27 · OVR from 2KRatings.com · Syncs hourly
         </div>
       </div>
     );
@@ -366,7 +366,7 @@ export default function App() {
           </div>
 
           <div style={{borderTop:"1px solid rgba(255,255,255,0.04)",padding:"12px 20px",textAlign:"center",color:"#1e293b",fontSize:10,fontFamily:"'Barlow Condensed',sans-serif",letterSpacing:3,textTransform:"uppercase"}}>
-            GVO 25-26 · OVR from 2KRatings.com · Syncs hourly
+            GVO 26-27 · OVR from 2KRatings.com · Syncs hourly
           </div>
         </div>
       </div>
