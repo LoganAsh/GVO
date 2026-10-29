@@ -3,6 +3,7 @@ import { PlayerAvatar } from "./playerPhotos";
 import { supabase } from "./supabase";
 import DraftPicksTable from "./DraftPicksTable";
 import TeamStatsTable from "./TeamStatsTable";
+import AdvancedStatsTable from "./AdvancedStatsTable";
 import Standings from "./Standings";
 import Leaderboard from "./Leaderboard";
 import LeagueStats from "./LeagueStats";
@@ -850,7 +851,7 @@ export default function LeagueApp() {
 
             {/* Tab Switcher */}
             <div style={{display:"flex",gap:3,marginBottom:16,background:th.surfaceAlt,borderRadius:9,padding:3,width:"fit-content"}}>
-              {[["roster", ClipboardIcon, "Roster"], ["picks", TargetIcon, "Picks"], ["stats", BarChartIcon, "Stats"]].map(([key, Icon, label])=>(
+              {[["roster", ClipboardIcon, "Roster"], ["picks", TargetIcon, "Picks"], ["stats", BarChartIcon, "Stats"], ["advanced", BarChartIcon, "Advanced"]].map(([key, Icon, label])=>(
                 <button key={key} onClick={()=>setTab(key)} style={{padding:"7px 16px",borderRadius:7,border:"none",cursor:"pointer",fontFamily:"'Barlow Condensed',sans-serif",fontWeight:700,fontSize:12,letterSpacing:1,background:tab===key?"rgba(249,115,22,0.9)":"transparent",color:tab===key?"#fff":th.textMuted,display:"inline-flex",alignItems:"center",gap:6}}>
                   <Icon size={13}/><span>{label}</span>
                 </button>
@@ -862,6 +863,7 @@ export default function LeagueApp() {
               {tab==="roster"&&<RosterTable players={players} seasonLabels={seasonLabels} th={th}/>}
               {tab==="picks"&&<DraftPicksTable teamAbbr={sel} theme={theme} />}
               {tab==="stats"&&<TeamStatsTable teamAbbr={sel} theme={theme} />}
+              {tab==="advanced"&&<AdvancedStatsTable teamAbbr={sel} theme={theme} />}
             </div>
           </div>
 
