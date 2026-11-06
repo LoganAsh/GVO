@@ -71,8 +71,20 @@ const DISAMBIG_RULES = [
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+// Cyrillic and Greek letters the reader sometimes outputs in place of
+// look-alike Latin ones ("Kuminга"). Each maps to the Latin letter it looks like.
+const LOOKALIKES: Record<string, string> = {
+  "а": "a", "в": "b", "е": "e", "ё": "e", "к": "k", "м": "m", "н": "h", "о": "o", "р": "p", "с": "c",
+  "т": "t", "у": "y", "х": "x", "г": "r", "і": "i", "ј": "j", "ѕ": "s", "ԁ": "d", "ӏ": "l", "п": "n",
+  "α": "a", "β": "b", "ε": "e", "ι": "i", "κ": "k", "ν": "v", "ο": "o", "ρ": "p", "τ": "t", "υ": "u", "χ": "x",
+};
+const toLatin = (v: string) => [...(v || "")].map(ch => {
+  const low = ch.toLowerCase();
+  return LOOKALIKES[low] ?? ch;
+}).join("");
+
 function normalizeName(raw: string) {
-  const s = (raw || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+  const s = toLatin(raw || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
     .replace(/[^a-z0-9 ]+/g, " ").replace(/\b(jr|sr|ii|iii|iv)\b/g, " ").replace(/\s+/g, " ").trim();
   if (!s) return null;
   const parts = s.split(" ");
@@ -184,16 +196,24 @@ function candidatesFor(typed: string, team: string, ctx: Ctx): string[] {
   if (!n) return [];
   const alias = ctx.aliases.find(a => a.key === n.key && (a.team === team || a.team === null));
   const roster = ctx.rosters[team] || [];
-  if (alias) return roster.some(p => p.name === alias.roster_name) ? [alias.roster_name] : [];
+  // An alias whose target has left the roster (or been renamed in the Sheet)
+  // falls through to normal matching instead of blocking it.
+  if (alias && roster.some(p => p.name === alias.roster_name)) return [alias.roster_name];
   const exact = roster.filter(p => p.n.key === n.key);
   if (exact.length) return exact.map(p => p.name);
   const strict = roster.filter(p => p.n.last === n.last && (!n.first || !p.n.first || n.first[0] === p.n.first[0]));
   if (strict.length) return strict.map(p => p.name);
   // Tolerant pass, accepted only when exactly one player on the team fits:
-  // G/Q initial mix-up, or a one-letter difference in a last name of 5+ letters.
-  const loose = roster.filter(p =>
-    initialsMatch(n.first, p.n.first) &&
-    (p.n.last === n.last || (n.last.length >= 5 && editDistance(p.n.last, n.last) <= 1)));
+  // G/Q initial mix-up, or a misread last name: one letter off for 5-6 letter
+  // names, two letters off for 7+ letters (judged by the longer of the two,
+  // since a dropped letter makes the misread shorter).
+  const maxOff = (len: number) => (len >= 7 ? 2 : len >= 5 ? 1 : 0);
+  const loose = roster.filter(p => {
+    if (!initialsMatch(n.first, p.n.first)) return false;
+    if (p.n.last === n.last) return true;
+    const allow = maxOff(Math.max(p.n.last.length, n.last.length));
+    return allow > 0 && editDistance(p.n.last, n.last) <= allow;
+  });
   return loose.length === 1 ? [loose[0].name] : [];
 }
 
